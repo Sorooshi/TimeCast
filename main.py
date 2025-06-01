@@ -309,13 +309,9 @@ def main():
 
     # Dynamically import the model class
     try:
-        model_module = importlib.import_module(f'models.{args.algorithm.lower()}')
-        # Try to get the class with exact name first, then try with capitalized name
-        try:
-            model_class = getattr(model_module, args.algorithm)
-        except AttributeError:
-            # If not found, try with capitalized name
-            model_class = getattr(model_module, args.algorithm.capitalize())
+        # Import directly from models package
+        models = importlib.import_module('models')
+        model_class = getattr(models, args.algorithm)
             
         # Get the actual model name from the class
         model_name = model_class.__name__
