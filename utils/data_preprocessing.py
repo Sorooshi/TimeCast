@@ -147,7 +147,7 @@ def prepare_data_for_model(
     val_ratio: float = 0.1,
     batch_size: int = 16,
     include_time_features: bool = True,
-    normalization: str = 'standard'  # Options: 'standard', 'minmax', None
+    normalization: str = 'minmax'  # Options: 'standard', 'minmax', None
 ) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.utils.data.DataLoader, int]:
     """
     Prepare data loaders for training, validation, and test.
@@ -171,10 +171,13 @@ def prepare_data_for_model(
     # Calculate base input size from data
     base_input_size = data.shape[1]
     
-    # Calculate additional features if time features are included
+    # Calculate additional features if time features are included (can be modified)
     time_features_size = 0
     if include_time_features:
+        print(f"include_time_features is True if you have more 
+              than nine featueres modify the line below")
         time_features_size = 1 + 7 + 1  # hour + day_of_week (one-hot) + is_holiday
+        
     
     # Total input size
     input_size = base_input_size + time_features_size
@@ -186,30 +189,35 @@ def prepare_data_for_model(
         normalization=normalization
     )
     
-    # Fit scalers on training portion of data
-    train_end_idx = int(len(data) * train_ratio)
-    preprocessor.fit_scalers(data[:train_end_idx])
-    
-    # Create sequences with normalized data
-    X, y = preprocessor.create_sequences(data, dates)
-    
-    # Verify the input size matches our calculation
-    assert X.shape[2] == input_size, f"Input size mismatch. Expected {input_size}, got {X.shape[2]}"
-    
     # Calculate split indices
-    n_samples = len(X)
+    n_samples = len(data)  # Use original data length for splitting
     train_size = int(n_samples * train_ratio)
     val_size = int(n_samples * val_ratio)
     
-    # Split data into train, validation, and test sets
-    X_train = X[:train_size]
-    y_train = y[:train_size]
+    # Split raw data first
+    train_data = data[:train_size]
+    val_data = data[train_size:train_size + val_size]
+    test_data = data[train_size + val_size:]
     
-    X_val = X[train_size:train_size + val_size]
-    y_val = y[train_size:train_size + val_size]
+    # Split dates if provided
+    train_dates = None
+    val_dates = None
+    test_dates = None
+    if dates is not None:
+        train_dates = dates[:train_size]
+        val_dates = dates[train_size:train_size + val_size]
+        test_dates = dates[train_size + val_size:]
     
-    X_test = X[train_size + val_size:]
-    y_test = y[train_size + val_size:]
+    # Fit scalers on training data only
+    preprocessor.fit_scalers(train_data)
+    
+    # Create sequences for each split using the same preprocessor
+    X_train, y_train = preprocessor.create_sequences(train_data, train_dates)
+    X_val, y_val = preprocessor.create_sequences(val_data, val_dates)
+    X_test, y_test = preprocessor.create_sequences(test_data, test_dates)
+    
+    # Verify the input size matches our calculation
+    assert X_train.shape[2] == input_size, f"Input size mismatch. Expected {input_size}, got {X_train.shape[2]}"
     
     # Create PyTorch datasets
     train_dataset = torch.utils.data.TensorDataset(
