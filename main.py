@@ -42,14 +42,14 @@ def load_hyperparameters(model_name: str, model_class) -> Dict[str, Any]:
 
 def save_training_plots(history: Dict[str, List[float]], save_dir: Path, model_name: str):
     """
-    Save training and validation loss/MSE plots.
+    Save training and validation loss/metrics plots.
     
     Args:
         history: Dictionary containing training history
         save_dir: Directory to save the plots
         model_name: Name of the model for plot titles
     """
-    plt.style.use('default')  # Use default style instead of seaborn
+    plt.style.use('default')  
     
     # Create plots directory if it doesn't exist
     plots_dir = save_dir / "plots"
@@ -66,19 +66,6 @@ def save_training_plots(history: Dict[str, List[float]], save_dir: Path, model_n
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(plots_dir / 'loss_plot.png', dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    # Plot MSE
-    plt.figure(figsize=(10, 6))
-    plt.plot(history['train_mse'], label='Training MSE')
-    plt.plot(history['val_mse'], label='Validation MSE')
-    plt.title(f'{model_name} - Training and Validation MSE')
-    plt.xlabel('Epoch')
-    plt.ylabel('MSE')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(plots_dir / 'mse_plot.png', dpi=300, bbox_inches='tight')
     plt.close()
     
     # Plot R² Score
@@ -188,7 +175,6 @@ def save_results(
             'hyperparameters': str(hyperparams_dir / f"{mode}_parameters.json"),
             'plots': {
                 'loss': str(plots_dir / "loss_plot.png"),
-                'mse': str(plots_dir / "mse_plot.png"),
                 'r2': str(plots_dir / "r2_plot.png"),
                 'mape': str(plots_dir / "mape_plot.png")
             }

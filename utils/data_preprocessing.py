@@ -8,11 +8,65 @@ class TimeSeriesPreprocessor:
         self,
         sequence_length: int,
         n_features: int,
-        include_time_features: bool = True
+        include_time_features: bool = True,
+        normalization: str = 'standard'  # Options: 'standard', 'minmax', None
     ):
         self.sequence_length = sequence_length
         self.n_features = n_features
         self.include_time_features = include_time_features
+        self.normalization = normalization
+        self.scalers = None  # Will store fitted scalers
+        
+    def fit_scalers(self, data: np.ndarray) -> None:
+        """Fit scalers on training data."""
+        if self.normalization is None:
+            return
+            
+        from sklearn.preprocessing import StandardScaler, MinMaxScaler
+        
+        # Initialize scalers for each feature
+        self.scalers = []
+        for i in range(data.shape[1]):
+            if self.normalization == 'standard':
+                scaler = StandardScaler()
+            elif self.normalization == 'minmax':
+                scaler = MinMaxScaler()
+            else:
+                raise ValueError(f"Unknown normalization method: {self.normalization}")
+                
+            # Reshape to 2D array for sklearn
+            feature_data = data[:, i].reshape(-1, 1)
+            scaler.fit(feature_data)
+            self.scalers.append(scaler)
+    
+    def normalize_data(self, data: np.ndarray) -> np.ndarray:
+        """Apply normalization to data."""
+        if self.normalization is None or self.scalers is None:
+            return data
+            
+        normalized_data = np.zeros_like(data)
+        for i in range(data.shape[1]):
+            feature_data = data[:, i].reshape(-1, 1)
+            normalized_data[:, i] = self.scalers[i].transform(feature_data).ravel()
+            
+        return normalized_data
+    
+    def inverse_normalize(self, data: np.ndarray, feature_idx: int = None) -> np.ndarray:
+        """Inverse transform normalized data for specified feature(s)."""
+        if self.normalization is None or self.scalers is None:
+            return data
+            
+        if feature_idx is None:
+            # Inverse transform all features
+            original_data = np.zeros_like(data)
+            for i in range(data.shape[1]):
+                feature_data = data[:, i].reshape(-1, 1)
+                original_data[:, i] = self.scalers[i].inverse_transform(feature_data).ravel()
+            return original_data
+        else:
+            # Inverse transform single feature
+            feature_data = data.reshape(-1, 1)
+            return self.scalers[feature_idx].inverse_transform(feature_data).ravel()
         
     def create_sequences(
         self,
@@ -23,23 +77,26 @@ class TimeSeriesPreprocessor:
         Convert input data into sequences for time series prediction.
         
         Args:
-            data: Shape (timesteps, N) where N is number of features (in our case number of merchants)
+            data: Shape (timesteps, N) where N is number of features
             dates: Optional datetime index for time features
             
         Returns:
             X: Shape (samples, sequence_length, features)
             y: Shape (samples, 1) - total consumption across all merchants
         """
-        n_samples = len(data) - self.sequence_length
+        # Normalize data if requested
+        normalized_data = self.normalize_data(data)
+        
+        n_samples = len(normalized_data) - self.sequence_length
         
         # Create sequences
         X = np.zeros((n_samples, self.sequence_length, self.n_features))
         y = np.zeros((n_samples, 1))
         
         for i in range(n_samples):
-            X[i] = data[i:i + self.sequence_length]
+            X[i] = normalized_data[i:i + self.sequence_length]
             # Sum across all merchants to get total consumption
-            y[i] = np.sum(data[i + self.sequence_length])
+            y[i] = np.sum(data[i + self.sequence_length])  # Use original data for target
             
         if self.include_time_features and dates is not None:
             time_features = self._create_time_features(
@@ -80,7 +137,8 @@ def prepare_data_for_model(
     train_ratio: float = 0.7,
     val_ratio: float = 0.1,
     batch_size: int = 16,
-    include_time_features: bool = True
+    include_time_features: bool = True,
+    normalization: str = 'standard'  # Options: 'standard', 'minmax', None
 ) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.utils.data.DataLoader, int]:
     """
     Prepare data loaders for training, validation, and test.
@@ -93,6 +151,7 @@ def prepare_data_for_model(
         val_ratio: Proportion of data to use for validation
         batch_size: Batch size for data loaders
         include_time_features: Whether to include time-based features
+        normalization: Type of normalization to apply ('standard', 'minmax', or None)
         
     Returns:
         train_loader: DataLoader for training data
@@ -114,9 +173,15 @@ def prepare_data_for_model(
     preprocessor = TimeSeriesPreprocessor(
         sequence_length=sequence_length,
         n_features=base_input_size,
-        include_time_features=include_time_features
+        include_time_features=include_time_features,
+        normalization=normalization
     )
     
+    # Fit scalers on training portion of data
+    train_end_idx = int(len(data) * train_ratio)
+    preprocessor.fit_scalers(data[:train_end_idx])
+    
+    # Create sequences with normalized data
     X, y = preprocessor.create_sequences(data, dates)
     
     # Verify the input size matches our calculation
@@ -127,7 +192,7 @@ def prepare_data_for_model(
     train_size = int(n_samples * train_ratio)
     val_size = int(n_samples * val_ratio)
     
-    # Split into train, validation, and test
+    # Split data into train, validation, and test sets
     X_train = X[:train_size]
     y_train = y[:train_size]
     
@@ -137,7 +202,7 @@ def prepare_data_for_model(
     X_test = X[train_size + val_size:]
     y_test = y[train_size + val_size:]
     
-    # Convert to PyTorch tensors and create datasets
+    # Create PyTorch datasets
     train_dataset = torch.utils.data.TensorDataset(
         torch.FloatTensor(X_train),
         torch.FloatTensor(y_train)
@@ -159,13 +224,11 @@ def prepare_data_for_model(
     )
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
-        batch_size=batch_size,
-        shuffle=False  # No need to shuffle validation data
+        batch_size=batch_size
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=batch_size,
-        shuffle=False  # No need to shuffle test data
+        batch_size=batch_size
     )
     
     return train_loader, val_loader, test_loader, input_size 
