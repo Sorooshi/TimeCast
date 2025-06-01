@@ -35,7 +35,7 @@ pip install -r requirements.txt
 The package provides a command-line interface for training and evaluating models:
 
 ```bash
-python main.py --model <MODEL_NAME> \
+python main.py --algorithm <MODEL_NAME> \
                --data_name <DATASET_NAME> \
                --data_path <PATH_TO_DATA> \
                --mode <MODE> \
@@ -45,7 +45,7 @@ python main.py --model <MODEL_NAME> \
 
 ### Arguments
 
-- `--model`: Model to use (LSTM, TCN, Transformer, HybridTCNLSTM, MLP)
+- `--algorithm`: Model to use (LSTM, TCN, Transformer, HybridTCNLSTM, MLP)
 - `--data_name`: Name of the dataset
 - `--data_path`: Path to the data file (CSV format)
 - `--mode`: Operation mode (tune, apply, report)
@@ -58,7 +58,7 @@ python main.py --model <MODEL_NAME> \
 
 ```bash
 # Hyperparameter tuning
-python main.py --model HybridTCNLSTM \
+python main.py --algorithm HybridTCNLSTM \
                --data_name merchant_synthetic \
                --data_path data/merchant_synthetic.csv \
                --mode tune \
@@ -66,14 +66,14 @@ python main.py --model HybridTCNLSTM \
                --epochs 100
 
 # Training with tuned parameters
-python main.py --model HybridTCNLSTM \
+python main.py --algorithm HybridTCNLSTM \
                --data_name merchant_synthetic \
                --data_path data/merchant_synthetic.csv \
                --mode apply \
                --epochs 100
 
 # View results
-python main.py --model HybridTCNLSTM \
+python main.py --algorithm HybridTCNLSTM \
                --data_name merchant_synthetic \
                --mode report
 ```
