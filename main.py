@@ -316,6 +316,13 @@ def main():
         except AttributeError:
             # If not found, try with capitalized name
             model_class = getattr(model_module, args.algorithm.capitalize())
+            
+        # Get the actual model name from the class
+        model_name = model_class.__name__
+        
+        # Update logs directory to use proper model name
+        logs_dir = Path("logs") / model_name
+        logs_dir.mkdir(parents=True, exist_ok=True)
     except (ImportError, AttributeError):
         raise ValueError(f"Model {args.algorithm} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, PatchTST")
 
@@ -388,11 +395,11 @@ def main():
             patience=args.patience,
             params=best_params
         )
-        save_results(args.algorithm, history, metrics, predictions, best_params, mode='tune')
+        save_results(model_name, history, metrics, predictions, best_params, mode='tune')
         
     else:  # apply mode
         # Load best parameters if available, otherwise use defaults
-        params = load_hyperparameters(args.algorithm, model_class)
+        params = load_hyperparameters(model_name, model_class)
         params['input_size'] = input_size
         
         # Initialize and train model
@@ -406,16 +413,9 @@ def main():
             patience=args.patience,
             params=params
         )
-        save_results(
-            args.algorithm,
-            history,
-            metrics,
-            predictions,
-            params,
-            mode='apply'
-        )
+        save_results(model_name, history, metrics, predictions, params, mode='apply')
     
-    print(f"\nDetailed results saved in results/{args.algorithm}/")
+    print(f"\nDetailed results saved in results/{model_name}/")
 
 if __name__ == '__main__':
     main() 

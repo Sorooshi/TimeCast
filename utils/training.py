@@ -253,12 +253,25 @@ def tune_hyperparameters(
         
         # Create trial parameters
         params = {}
-        for param_name, (low, high) in param_ranges.items():
-            if isinstance(low, int) and isinstance(high, int):
-                params[param_name] = trial.suggest_int(param_name, low, high)
-            else:
-                params[param_name] = trial.suggest_float(param_name, low, high)
+        hidden_sizes = []  # Track hidden sizes separately
         
+        for param_name, range_value in param_ranges.items():
+            if param_name == 'hidden_sizes':
+                # Handle hidden_sizes parameter specially
+                for i, (low, high) in enumerate(range_value):
+                    size = trial.suggest_int(f'hidden_size_{i}', low, high)
+                    hidden_sizes.append(size)
+            elif isinstance(range_value, tuple):
+                low, high = range_value
+                if isinstance(low, int) and isinstance(high, int):
+                    params[param_name] = trial.suggest_int(param_name, low, high)
+                else:
+                    params[param_name] = trial.suggest_float(param_name, low, high)
+        
+        # Add hidden_sizes to params if any were collected
+        if hidden_sizes:
+            params['hidden_sizes'] = hidden_sizes
+            
         # Add input_size to parameters
         if input_size is not None:
             params['input_size'] = input_size
@@ -283,8 +296,22 @@ def tune_hyperparameters(
     study = optuna.create_study(direction='minimize')
     study.optimize(objective, n_trials=n_trials)
     
-    # Get best parameters and ensure input_size is included
-    best_params = study.best_params
+    # Get best parameters and reconstruct hidden_sizes if needed
+    best_params = {}
+    hidden_sizes = []
+    
+    # Extract parameters from study's best trial
+    for param_name, param_value in study.best_params.items():
+        if param_name.startswith('hidden_size_'):
+            hidden_sizes.append(param_value)
+        else:
+            best_params[param_name] = param_value
+            
+    # Add hidden_sizes to best_params if any were collected
+    if hidden_sizes:
+        best_params['hidden_sizes'] = hidden_sizes
+        
+    # Add input_size to parameters
     if input_size is not None:
         best_params['input_size'] = input_size
     
