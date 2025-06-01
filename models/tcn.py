@@ -27,18 +27,16 @@ class TemporalBlock(nn.Module):
         # First dilated causal convolution
         self.conv1 = nn.Conv1d(
             self.n_inputs, self.n_outputs, self.kernel_size,
-            stride=self.stride, padding=0, dilation=self.dilation
+            stride=self.stride, padding=self.padding, dilation=self.dilation
         )
-        self.chomp1 = Chomp1d(self.padding)  # Remove padding from the end
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(self.dropout)
         
         # Second dilated causal convolution
         self.conv2 = nn.Conv1d(
             self.n_outputs, self.n_outputs, self.kernel_size,
-            stride=self.stride, padding=0, dilation=self.dilation
+            stride=self.stride, padding=self.padding, dilation=self.dilation
         )
-        self.chomp2 = Chomp1d(self.padding)  # Remove padding from the end
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(self.dropout)
         
@@ -56,35 +54,28 @@ class TemporalBlock(nn.Module):
             
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass with residual connection."""
-        # Apply padding manually before convolutions
-        padding = (self.padding, 0)  # Pad only on the left
-        x_pad = nn.functional.pad(x, padding)
-        
         # First convolution block
-        out = self.conv1(x_pad)
-        out = self.chomp1(out)
+        out = self.conv1(x)
         out = self.relu1(out)
         out = self.dropout1(out)
         
-        # Second convolution block with padding
-        out_pad = nn.functional.pad(out, padding)
-        out = self.conv2(out_pad)
-        out = self.chomp2(out)
+        # Second convolution block
+        out = self.conv2(out)
         out = self.relu2(out)
         out = self.dropout2(out)
         
         # Residual connection
         res = x if self.downsample is None else self.downsample(x)
+        
+        # Ensure residual connection matches the output size
+        if out.size(2) != res.size(2):
+            # If sizes don't match, trim the longer sequence
+            if out.size(2) > res.size(2):
+                out = out[:, :, :res.size(2)]
+            else:
+                res = res[:, :, :out.size(2)]
+                
         return self.relu(out + res)
-
-class Chomp1d(nn.Module):
-    """Remove padding from the end of the sequence."""
-    def __init__(self, chomp_size: int):
-        super().__init__()
-        self.chomp_size = chomp_size
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x[:, :, :-self.chomp_size].contiguous()
 
 class TCN(BaseTimeSeriesModel):
     def __init__(
@@ -110,6 +101,9 @@ class TCN(BaseTimeSeriesModel):
             in_channels = self.input_size if i == 0 else self.num_channels[i-1]
             out_channels = self.num_channels[i]
             
+            # Calculate padding to maintain sequence length
+            padding = (self.kernel_size - 1) * dilation
+            
             layers.append(
                 TemporalBlock(
                     in_channels,
@@ -117,7 +111,7 @@ class TCN(BaseTimeSeriesModel):
                     self.kernel_size,
                     stride=1,
                     dilation=dilation,
-                    padding=(self.kernel_size-1) * dilation,
+                    padding=padding,
                     dropout=self.dropout
                 )
             )
