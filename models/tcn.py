@@ -89,7 +89,7 @@ class TemporalBlock(nn.Module):
 class TCN(BaseTimeSeriesModel):
     def __init__(
         self,
-        input_size: int = 10,
+        input_size: int,  # Required parameter, no default
         num_channels: List[int] = [32, 64, 128],
         kernel_size: int = 3,
         dropout: float = 0.2,
@@ -147,7 +147,7 @@ class TCN(BaseTimeSeriesModel):
     @staticmethod
     def get_default_parameters() -> Dict[str, Any]:
         return {
-            'input_size': 10,  # This will be overridden by actual data
+            # input_size will be set based on actual data
             'num_channels': [32, 64, 128],
             'kernel_size': 3,
             'dropout': 0.2,

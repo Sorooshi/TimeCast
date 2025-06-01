@@ -257,11 +257,12 @@ def tune_hyperparameters(
         metrics: Validation metrics for best model
     """
     def objective(trial):
-        # Get parameter ranges from model
-        param_ranges = model_class().get_parameter_ranges()
+        # Create a temporary model instance with input_size to get parameter ranges
+        temp_model = model_class(input_size=input_size)
+        param_ranges = temp_model.get_parameter_ranges()
         
-        # Create trial parameters
-        params = {}
+        # Start with input_size
+        params = {'input_size': input_size}
         hidden_sizes = []  # Track hidden sizes separately
         
         for param_name, range_value in param_ranges.items():
@@ -280,33 +281,33 @@ def tune_hyperparameters(
         # Add hidden_sizes to params if any were collected
         if hidden_sizes:
             params['hidden_sizes'] = hidden_sizes
-            
-        # Add input_size to parameters
-        if input_size is not None:
-            params['input_size'] = input_size
 
         # Initialize model with suggested parameters
         model = model_class(**params)
         trainer = TimeSeriesTrainer(model)
         
-        # Train and evaluate
-        history, metrics, _ = trainer.train_and_evaluate(
-            train_loader,
-            val_loader,
-            val_loader,  # Use validation set for both validation and test
-            epochs=epochs,
-            patience=patience,
-            params=params
-        )
-        
-        return metrics['val_loss']
+        try:
+            # Train and evaluate
+            history, metrics, _ = trainer.train_and_evaluate(
+                train_loader,
+                val_loader,
+                val_loader,  # Use validation set for both validation and test
+                epochs=epochs,
+                patience=patience,
+                params=params
+            )
+            return metrics['val_loss']
+        except RuntimeError as e:
+            print(f"Trial failed with error: {str(e)}")
+            print(f"Parameters used: {params}")
+            raise e
     
     # Create and run study
     study = optuna.create_study(direction='minimize')
     study.optimize(objective, n_trials=n_trials)
     
     # Get best parameters and reconstruct hidden_sizes if needed
-    best_params = {}
+    best_params = {'input_size': input_size}
     hidden_sizes = []
     
     # Extract parameters from study's best trial
@@ -319,10 +320,6 @@ def tune_hyperparameters(
     # Add hidden_sizes to best_params if any were collected
     if hidden_sizes:
         best_params['hidden_sizes'] = hidden_sizes
-        
-    # Add input_size to parameters
-    if input_size is not None:
-        best_params['input_size'] = input_size
     
     # Train final model with best parameters to get metrics
     model = model_class(**best_params)

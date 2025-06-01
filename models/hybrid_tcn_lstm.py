@@ -89,7 +89,7 @@ class TemporalBlock(nn.Module):
 class HybridTCNLSTM(BaseTimeSeriesModel):
     def __init__(
         self,
-        input_size: int = 10,
+        input_size: int,  # Required parameter, no default
         tcn_channels: List[int] = [32, 64],  # Reduced complexity in TCN part
         kernel_size: int = 3,
         lstm_hidden_size: int = 64,
@@ -173,7 +173,7 @@ class HybridTCNLSTM(BaseTimeSeriesModel):
     @staticmethod
     def get_default_parameters() -> Dict[str, Any]:
         return {
-            'input_size': 10,  # This will be overridden by actual data
+            # input_size will be set based on actual data
             'tcn_channels': [32, 64],
             'kernel_size': 3,
             'lstm_hidden_size': 64,

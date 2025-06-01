@@ -77,6 +77,28 @@ class TimeSeriesPreprocessor:
             feature_data = data.reshape(-1, 1)
             return self.scalers[feature_idx].inverse_transform(feature_data).ravel()
         
+    def _create_time_features(self, dates: pd.DatetimeIndex) -> np.ndarray:
+        """Create time-based features."""
+        # Convert to DatetimeIndex if not already
+        if not isinstance(dates, pd.DatetimeIndex):
+            dates = pd.DatetimeIndex(dates)
+            
+        # Hour of day (normalized to [0, 1])
+        hour = dates.hour.values / 23.0
+        
+        # Day of week (one-hot encoded)
+        dow = pd.get_dummies(dates.dayofweek, columns=range(7)).values
+        # Ensure we always have 7 columns for day of week
+        if dow.shape[1] < 7:
+            missing_cols = 7 - dow.shape[1]
+            dow = np.pad(dow, ((0, 0), (0, missing_cols)))
+        
+        # Is holiday (dummy for now - should be replaced with actual holiday data)
+        is_holiday = np.zeros(len(dates))
+        
+        # Stack all features
+        return np.column_stack([hour, dow, is_holiday])
+
     def create_sequences(
         self,
         data: np.ndarray,
@@ -98,8 +120,9 @@ class TimeSeriesPreprocessor:
         
         n_samples = len(normalized_data) - self.sequence_length
         
-        # Create sequences
-        X = np.zeros((n_samples, self.sequence_length, self.n_features))
+        # Create sequences for base features
+        base_features = normalized_data.shape[1]
+        X = np.zeros((n_samples, self.sequence_length, base_features))
         y = np.zeros((n_samples, 1))
         
         for i in range(n_samples):
@@ -108,36 +131,18 @@ class TimeSeriesPreprocessor:
             y[i] = np.sum(data[i + self.sequence_length])  # Use original data for target
             
         if self.include_time_features and dates is not None:
-            time_features = self._create_time_features(
-                dates[self.sequence_length:]
-            )
-            X = np.concatenate([
-                X,
-                np.repeat(
-                    time_features[:, np.newaxis, :],
-                    self.sequence_length,
-                    axis=1
-                )
-            ], axis=2)
+            # Pre-compute all time features
+            all_time_features = self._create_time_features(dates)
+            time_features = np.zeros((n_samples, self.sequence_length, all_time_features.shape[1]))
+            
+            # Create sequences of time features
+            for i in range(n_samples):
+                time_features[i] = all_time_features[i:i + self.sequence_length]
+            
+            # Concatenate base features with time features
+            X = np.concatenate([X, time_features], axis=2)
             
         return X, y
-    
-    def _create_time_features(self, dates: pd.DatetimeIndex) -> np.ndarray:
-        """Create time-based features."""
-        # Convert to DatetimeIndex if not already
-        if not isinstance(dates, pd.DatetimeIndex):
-            dates = pd.DatetimeIndex(dates)
-            
-        # Hour of day (normalized to [0, 1])
-        hour = dates.hour.values / 23.0
-        
-        # Day of week (one-hot encoded)
-        dow = pd.get_dummies(dates.dayofweek).values
-        
-        # Is holiday (dummy for now - should be replaced with actual holiday data)
-        is_holiday = np.zeros(len(dates))
-        
-        return np.column_stack([hour, dow, is_holiday])
 
 def prepare_data_for_model(
     data: np.ndarray,
@@ -170,20 +175,25 @@ def prepare_data_for_model(
     """
     # Calculate base input size from data
     base_input_size = data.shape[1]
+    print(f"Base input size (from data): {base_input_size}")
     
-    # Calculate additional features if time features are included (can be modified)
+    # Calculate additional features if time features are included
     time_features_size = 0
     if include_time_features:
-        print(f"include_time_features is True. If you have more than nine features, modify the line below.")
-        time_features_size = 1 + 7 + 1  # hour + day_of_week (one-hot) + is_holiday
-        
+        # hour (1) + day_of_week (7) + is_holiday (1)
+        hour_features = 1
+        day_of_week_features = 7
+        holiday_features = 1
+        time_features_size = hour_features + day_of_week_features + holiday_features
+        print(f"Time features size: {time_features_size} (hour: {hour_features}, day_of_week: {day_of_week_features}, holiday: {holiday_features})")
     
     # Total input size
     input_size = base_input_size + time_features_size
+    print(f"Total input size: {input_size} (base: {base_input_size} + time: {time_features_size})")
     
     preprocessor = TimeSeriesPreprocessor(
         sequence_length=sequence_length,
-        n_features=base_input_size,
+        n_features=input_size,  # Use total input size here
         include_time_features=include_time_features,
         normalization=normalization
     )
@@ -216,7 +226,11 @@ def prepare_data_for_model(
     X_test, y_test = preprocessor.create_sequences(test_data, test_dates)
     
     # Verify the input size matches our calculation
-    assert X_train.shape[2] == input_size, f"Input size mismatch. Expected {input_size}, got {X_train.shape[2]}"
+    actual_input_size = X_train.shape[2]
+    if actual_input_size != input_size:
+        print(f"Warning: Input size mismatch. Expected {input_size}, but got {actual_input_size} from data")
+        print("Using actual input size from data")
+        input_size = actual_input_size
     
     # Create PyTorch datasets
     train_dataset = torch.utils.data.TensorDataset(

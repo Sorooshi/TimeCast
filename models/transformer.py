@@ -57,7 +57,7 @@ class PositionalEncoding(nn.Module):
 class Transformer(BaseTimeSeriesModel):
     def __init__(
         self,
-        input_size: int = 10,
+        input_size: int,  # Required parameter, no default
         d_model: int = 64,
         nhead: int = 4,
         num_encoder_layers: int = 3,
@@ -138,7 +138,7 @@ class Transformer(BaseTimeSeriesModel):
     @staticmethod
     def get_default_parameters() -> Dict[str, Any]:
         return {
-            'input_size': 10,  # This will be overridden by actual data
+            # input_size will be set based on actual data
             'd_model': 64,     # Must be divisible by nhead
             'nhead': 4,        # Must be even for optimal performance
             'num_encoder_layers': 3,

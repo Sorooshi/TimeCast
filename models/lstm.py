@@ -15,8 +15,14 @@ from models.base_model import BaseTimeSeriesModel
 class LSTM(BaseTimeSeriesModel):
     """LSTM model for time series forecasting"""
     
-    def __init__(self, input_size=10, hidden_size=64, num_layers=2, 
-                 dropout=0.1, learning_rate=0.001):
+    def __init__(
+        self,
+        input_size: int,  # Required parameter, no default
+        hidden_size: int = 64,
+        num_layers: int = 2, 
+        dropout: float = 0.1,
+        learning_rate: float = 0.001
+    ):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -46,7 +52,7 @@ class LSTM(BaseTimeSeriesModel):
     def get_default_parameters() -> Dict[str, Any]:
         """Return default parameters for the model"""
         return {
-            'input_size': 10,  # This will be overridden by actual data
+            # input_size will be set based on actual data
             'hidden_size': 64,
             'num_layers': 2,
             'dropout': 0.1,
