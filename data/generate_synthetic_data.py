@@ -17,6 +17,8 @@ def generate_merchant_data(n_days=30, n_merchants=5, n_customers=50):
     - hour: hour of the day (0-23)
     - is_weekend: boolean flag for weekend
     - is_holiday: boolean flag for holidays (randomly assigned)
+    - transaction_speed: processing time in seconds
+    - customer_loyalty_score: customer loyalty score (0-100)
     """
     
     # Generate timestamps
@@ -67,12 +69,38 @@ def generate_merchant_data(n_days=30, n_merchants=5, n_customers=50):
     # Increase amounts during holidays
     df.loc[df['is_holiday'], 'amount'] *= 1.5
     
-    # Round amounts to 2 decimal places
+    # Add transaction_speed (processing time in seconds)
+    # Base speed of 2-5 seconds, with slower processing during peak hours and holidays
+    base_speed = np.random.uniform(2, 5, len(df))
+    peak_hours = (df['hour'] >= 12) & (df['hour'] <= 14)  # Lunch hours
+    speed_multipliers = (
+        (1.5 * peak_hours.astype(float)) +  # Slower during peak hours
+        (1.3 * df['is_holiday'].astype(float)) +  # Slower during holidays
+        (1.2 * df['is_weekend'].astype(float)) +  # Slightly slower on weekends
+        1.0  # Base multiplier
+    )
+    df['transaction_speed'] = base_speed * speed_multipliers
+    
+    # Add customer_loyalty_score (0-100)
+    # Base scores with some randomness
+    base_scores = np.random.normal(60, 15, n_customers)
+    base_scores = np.clip(base_scores, 0, 100)
+    
+    # Create a mapping from customer_id to loyalty score
+    loyalty_scores = {i+1: score for i, score in enumerate(base_scores)}
+    
+    # Add scores to DataFrame
+    df['customer_loyalty_score'] = df['customer_id'].map(loyalty_scores)
+    
+    # Round numeric columns
     df['amount'] = np.round(df['amount'], 2)
+    df['transaction_speed'] = np.round(df['transaction_speed'], 2)
+    df['customer_loyalty_score'] = np.round(df['customer_loyalty_score'], 1)
     
     # Reorder columns
     columns = ['timestamp', 'merchant_id', 'customer_id', 'amount', 
-              'day_of_week', 'hour', 'is_weekend', 'is_holiday']
+              'day_of_week', 'hour', 'is_weekend', 'is_holiday',
+              'transaction_speed', 'customer_loyalty_score']
     
     return df[columns]
 
