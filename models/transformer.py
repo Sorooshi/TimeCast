@@ -11,19 +11,38 @@ class PositionalEncoding(nn.Module):
         self.d_model = d_model  # dimensionality of the model's internal representations
         self.max_len = max_len  # maximum sequence length that the positional encoding can handle.
         
-        pe = torch.zeros(max_len, d_model)
+        # Create position matrix [max_len, 1]
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         # computing the frequency terms for the sinusoidal position encoding
         div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * # Creates a sequence from 0 to d_model-1, stepping by 2 (Positional encoding)
-            (-math.log(10000.0) / d_model) # controls how quickly the frequencies change
-        )  # creates different frequencies for the positional encoding        
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
+            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+        )
+        
+        # Initialize positional encoding matrix
+        pe = torch.zeros(max_len, d_model)
+        
+        # Calculate number of dimensions to use for sine/cosine
+        n_dims = d_model // 2 * 2  # Round down to nearest even number
+        
+        # Compute positional encoding for even indices
+        pe_even = torch.sin(position * div_term[:n_dims//2])
+        pe_odd = torch.cos(position * div_term[:n_dims//2])
+        
+        # Interleave the sine and cosine values
+        pe[:, 0:n_dims:2] = pe_even
+        pe[:, 1:n_dims:2] = pe_odd
+        
+        # If d_model is odd, handle the last dimension
+        if d_model % 2 == 1:
+            last_dim = torch.sin(position * div_term[-1])
+            pe[:, -1] = last_dim.squeeze(-1)
+        
+        # Add batch dimension and register buffer
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Add positional encoding to the input tensor."""
         return x + self.pe[:, :x.size(1)]
 
 class Transformer(BaseTimeSeriesModel):
@@ -39,6 +58,18 @@ class Transformer(BaseTimeSeriesModel):
         learning_rate: float = 1e-4
     ):
         super().__init__()
+        # Validate parameters
+        # Ensure nhead is even
+        if nhead % 2 != 0:
+            nhead = nhead + 1
+            print(f"Warning: nhead must be even. Adjusted nhead to {nhead}")
+            
+        # Ensure d_model is divisible by nhead
+        if d_model % nhead != 0:
+            # Round d_model up to the nearest multiple of nhead
+            d_model = ((d_model + nhead - 1) // nhead) * nhead
+            print(f"Warning: d_model must be divisible by nhead. Adjusted d_model to {d_model}")
+        
         # Store all parameters as instance variables
         self.input_size = input_size
         self.d_model = d_model
@@ -67,7 +98,7 @@ class Transformer(BaseTimeSeriesModel):
             batch_first=True
         )
         
-        # Output projection now predicts a single value (total consumption)
+        # Output projection predicts a single value
         self.output_projection = nn.Linear(self.d_model, 1)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -79,7 +110,7 @@ class Transformer(BaseTimeSeriesModel):
         # Add positional encoding
         x = self.pos_encoder(x)
         
-        # Create target mask for the last position
+        # Create target sequence (using last position)
         target_seq = x[:, -1:, :]
         
         # Generate prediction
@@ -91,7 +122,7 @@ class Transformer(BaseTimeSeriesModel):
             memory_mask=None
         )
         
-        # Project output back to a single value (total consumption)
+        # Project output to prediction
         prediction = self.output_projection(output[:, -1, :])
         return prediction
     
@@ -99,8 +130,8 @@ class Transformer(BaseTimeSeriesModel):
     def get_default_parameters() -> Dict[str, Any]:
         return {
             'input_size': 10,  # This will be overridden by actual data
-            'd_model': 64,
-            'nhead': 4,
+            'd_model': 64,     # Must be divisible by nhead
+            'nhead': 4,        # Must be even for optimal performance
             'num_encoder_layers': 3,
             'num_decoder_layers': 3,
             'dim_feedforward': 256,
@@ -110,8 +141,8 @@ class Transformer(BaseTimeSeriesModel):
     
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         return {
-            'd_model': (16, 256),
-            'nhead': (2, 8),
+            'd_model': (32, 256),  # Will be adjusted to be divisible by nhead
+            'nhead': (2, 8),       # Will be adjusted to be even
             'num_encoder_layers': (1, 6),
             'num_decoder_layers': (1, 6),
             'dim_feedforward': (32, 512),
