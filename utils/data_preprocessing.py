@@ -174,8 +174,7 @@ def prepare_data_for_model(
     # Calculate additional features if time features are included (can be modified)
     time_features_size = 0
     if include_time_features:
-        print(f"include_time_features is True if you have more 
-              than nine featueres modify the line below")
+        print(f"include_time_features is True. If you have more than nine features, modify the line below.")
         time_features_size = 1 + 7 + 1  # hour + day_of_week (one-hot) + is_holiday
         
     
