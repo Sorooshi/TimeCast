@@ -24,41 +24,67 @@ class TemporalBlock(nn.Module):
         self.padding = padding
         self.dropout = dropout
         
+        # First dilated causal convolution
         self.conv1 = nn.Conv1d(
             self.n_inputs, self.n_outputs, self.kernel_size,
-            stride=self.stride, padding=self.padding, dilation=self.dilation
+            stride=self.stride, padding=0, dilation=self.dilation
         )
+        self.chomp1 = Chomp1d(self.padding)  # Remove padding from the end
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(self.dropout)
         
+        # Second dilated causal convolution
         self.conv2 = nn.Conv1d(
             self.n_outputs, self.n_outputs, self.kernel_size,
-            stride=self.stride, padding=self.padding, dilation=self.dilation
+            stride=self.stride, padding=0, dilation=self.dilation
         )
+        self.chomp2 = Chomp1d(self.padding)  # Remove padding from the end
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(self.dropout)
         
+        # Residual connection if input and output dimensions differ
         self.downsample = nn.Conv1d(self.n_inputs, self.n_outputs, 1) if self.n_inputs != self.n_outputs else None
         self.relu = nn.ReLU()
         self.init_weights()
         
     def init_weights(self):
+        """Initialize weights with normal distribution."""
         self.conv1.weight.data.normal_(0, 0.01)
         self.conv2.weight.data.normal_(0, 0.01)
         if self.downsample is not None:
             self.downsample.weight.data.normal_(0, 0.01)
             
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.conv1(x)
+        """Forward pass with residual connection."""
+        # Apply padding manually before convolutions
+        padding = (self.padding, 0)  # Pad only on the left
+        x_pad = nn.functional.pad(x, padding)
+        
+        # First convolution block
+        out = self.conv1(x_pad)
+        out = self.chomp1(out)
         out = self.relu1(out)
         out = self.dropout1(out)
         
-        out = self.conv2(out)
+        # Second convolution block with padding
+        out_pad = nn.functional.pad(out, padding)
+        out = self.conv2(out_pad)
+        out = self.chomp2(out)
         out = self.relu2(out)
         out = self.dropout2(out)
         
+        # Residual connection
         res = x if self.downsample is None else self.downsample(x)
         return self.relu(out + res)
+
+class Chomp1d(nn.Module):
+    """Remove padding from the end of the sequence."""
+    def __init__(self, chomp_size: int):
+        super().__init__()
+        self.chomp_size = chomp_size
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x[:, :, :-self.chomp_size].contiguous()
 
 class TCN(BaseTimeSeriesModel):
     def __init__(
@@ -72,8 +98,7 @@ class TCN(BaseTimeSeriesModel):
         super().__init__()
         # Store all parameters as instance variables
         self.input_size = input_size
-        # smaller channels learn lower level features, larger channels learn higher level features, start from smaller to larger
-        self.num_channels = num_channels  
+        self.num_channels = num_channels
         self.kernel_size = kernel_size
         self.dropout = dropout
         self.learning_rate = learning_rate
@@ -98,7 +123,7 @@ class TCN(BaseTimeSeriesModel):
             )
         
         self.network = nn.Sequential(*layers)
-        # Output layer now predicts a single value (total consumption)
+        # Output layer predicts a single value
         self.fc = nn.Linear(self.num_channels[-1], 1)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -112,7 +137,7 @@ class TCN(BaseTimeSeriesModel):
         # Take the last sequence element
         x = x[:, :, -1]
         
-        # Project to output size (total consumption)
+        # Project to output size
         x = self.fc(x)
         return x
     
