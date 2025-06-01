@@ -116,13 +116,14 @@ class TCN(BaseTimeSeriesModel):
         x = self.fc(x)
         return x
     
-    def get_default_parameters(self) -> Dict[str, Any]:
+    @staticmethod
+    def get_default_parameters() -> Dict[str, Any]:
         return {
-            'input_size': self.input_size,
-            'num_channels': self.num_channels,
-            'kernel_size': self.kernel_size,
-            'dropout': self.dropout,
-            'learning_rate': self.learning_rate
+            'input_size': 10,  # This will be overridden by actual data
+            'num_channels': [32, 64, 128],
+            'kernel_size': 3,
+            'dropout': 0.2,
+            'learning_rate': 0.001
         }
     
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:

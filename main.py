@@ -362,7 +362,7 @@ def main():
 
     # Prepare data loaders
     from utils.data_preprocessing import prepare_data_for_model
-    train_loader, val_loader, test_loader = prepare_data_for_model(
+    train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
         data=data,
         dates=dates,
         sequence_length=args.sequence_length
@@ -376,7 +376,8 @@ def main():
             val_loader,
             n_trials=args.n_trials,
             epochs=args.epochs,
-            patience=args.patience
+            patience=args.patience,
+            input_size=input_size
         )
         print("\nTuning Results:")
         print(f"Best validation loss: {tuning_metrics['val_loss']:.4f}")
@@ -384,6 +385,7 @@ def main():
         print(f"Best validation MAPE: {tuning_metrics['val_mape']:.2f}%")
         
         # Train final model with best parameters
+        best_params['input_size'] = input_size
         model = model_class(**best_params)
         trainer = TimeSeriesTrainer(model)
         history, metrics, predictions = trainer.train_and_evaluate(
@@ -399,6 +401,7 @@ def main():
     else:  # apply mode
         # Load best parameters if available, otherwise use defaults
         params = load_hyperparameters(args.algorithm, model_class)
+        params['input_size'] = input_size
         
         # Initialize and train model
         model = model_class(**params)

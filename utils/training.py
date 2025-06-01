@@ -214,32 +214,45 @@ class TimeSeriesTrainer:
         return fold_scores, params
 
 def tune_hyperparameters(
-    model_class: type,
+    model_class,
     train_loader: torch.utils.data.DataLoader,
     val_loader: torch.utils.data.DataLoader,
     n_trials: int = 100,
     epochs: int = 100,
-    patience: int = 10
+    patience: int = 25,
+    input_size: int = None
 ) -> Tuple[Dict[str, Any], Dict[str, float]]:
     """
     Tune hyperparameters using Optuna.
     
+    Args:
+        model_class: Model class to tune
+        train_loader: Training data loader
+        val_loader: Validation data loader
+        n_trials: Number of trials for hyperparameter search
+        epochs: Maximum number of epochs per trial
+        patience: Early stopping patience
+        input_size: Number of input features
+        
     Returns:
         best_params: Best hyperparameters found
-        best_metrics: Best validation metrics achieved
+        metrics: Validation metrics for best model
     """
-    def objective(trial: optuna.Trial) -> float:
+    def objective(trial):
         # Get parameter ranges from model
-        model = model_class()
-        param_ranges = model.get_parameter_ranges()
+        param_ranges = model_class().get_parameter_ranges()
         
-        # Create parameters dictionary from ranges
+        # Create trial parameters
         params = {}
         for param_name, (low, high) in param_ranges.items():
             if isinstance(low, int) and isinstance(high, int):
                 params[param_name] = trial.suggest_int(param_name, low, high)
             else:
                 params[param_name] = trial.suggest_float(param_name, low, high)
+        
+        # Add input_size to parameters
+        if input_size is not None:
+            params['input_size'] = input_size
 
         # Initialize model with suggested parameters
         model = model_class(**params)
@@ -249,24 +262,33 @@ def tune_hyperparameters(
         history, metrics, _ = trainer.train_and_evaluate(
             train_loader,
             val_loader,
-            val_loader,  # Using val_loader as dummy test_loader during tuning
+            val_loader,  # Use validation set for both validation and test
             epochs=epochs,
-            patience=patience
+            patience=patience,
+            params=params
         )
         
-        # Report additional metrics
-        trial.set_user_attr('r2_score', metrics['val_r2'])
-        trial.set_user_attr('mape', metrics['val_mape'])
-        
         return metrics['val_loss']
-
-    study = optuna.create_study(direction="minimize")
+    
+    # Create and run study
+    study = optuna.create_study(direction='minimize')
     study.optimize(objective, n_trials=n_trials)
     
-    best_metrics = {
-        'val_loss': study.best_value,
-        'val_r2': study.best_trial.user_attrs['r2_score'],
-        'val_mape': study.best_trial.user_attrs['mape']
-    }
-
-    return study.best_params, best_metrics 
+    # Get best parameters and ensure input_size is included
+    best_params = study.best_params
+    if input_size is not None:
+        best_params['input_size'] = input_size
+    
+    # Train final model with best parameters to get metrics
+    model = model_class(**best_params)
+    trainer = TimeSeriesTrainer(model)
+    _, metrics, _ = trainer.train_and_evaluate(
+        train_loader,
+        val_loader,
+        val_loader,
+        epochs=epochs,
+        patience=patience,
+        params=best_params
+    )
+    
+    return best_params, metrics 

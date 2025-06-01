@@ -95,16 +95,17 @@ class Transformer(BaseTimeSeriesModel):
         prediction = self.output_projection(output[:, -1, :])
         return prediction
     
-    def get_default_parameters(self) -> Dict[str, Any]:
+    @staticmethod
+    def get_default_parameters() -> Dict[str, Any]:
         return {
-            'input_size': self.input_size,
-            'd_model': self.d_model,
-            'nhead': self.nhead,
-            'num_encoder_layers': self.num_encoder_layers,
-            'num_decoder_layers': self.num_decoder_layers,
-            'dim_feedforward': self.dim_feedforward,
-            'dropout': self.dropout,
-            'learning_rate': self.learning_rate
+            'input_size': 10,  # This will be overridden by actual data
+            'd_model': 64,
+            'nhead': 4,
+            'num_encoder_layers': 3,
+            'num_decoder_layers': 3,
+            'dim_feedforward': 256,
+            'dropout': 0.1,
+            'learning_rate': 1e-4
         }
     
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:

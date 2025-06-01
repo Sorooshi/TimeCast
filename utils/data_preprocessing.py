@@ -58,6 +58,10 @@ class TimeSeriesPreprocessor:
     
     def _create_time_features(self, dates: pd.DatetimeIndex) -> np.ndarray:
         """Create time-based features."""
+        # Convert to DatetimeIndex if not already
+        if not isinstance(dates, pd.DatetimeIndex):
+            dates = pd.DatetimeIndex(dates)
+            
         # Hour of day (normalized to [0, 1])
         hour = dates.hour.values / 23.0
         
@@ -77,7 +81,7 @@ def prepare_data_for_model(
     val_ratio: float = 0.1,
     batch_size: int = 16,
     include_time_features: bool = True
-) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
+) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.utils.data.DataLoader, int]:
     """
     Prepare data loaders for training, validation, and test.
     
@@ -94,14 +98,29 @@ def prepare_data_for_model(
         train_loader: DataLoader for training data
         val_loader: DataLoader for validation data
         test_loader: DataLoader for test data
+        input_size: Actual number of input features
     """
+    # Calculate base input size from data
+    base_input_size = data.shape[1]
+    
+    # Calculate additional features if time features are included
+    time_features_size = 0
+    if include_time_features:
+        time_features_size = 1 + 7 + 1  # hour + day_of_week (one-hot) + is_holiday
+    
+    # Total input size
+    input_size = base_input_size + time_features_size
+    
     preprocessor = TimeSeriesPreprocessor(
         sequence_length=sequence_length,
-        n_features=data.shape[1],
+        n_features=base_input_size,
         include_time_features=include_time_features
     )
     
     X, y = preprocessor.create_sequences(data, dates)
+    
+    # Verify the input size matches our calculation
+    assert X.shape[2] == input_size, f"Input size mismatch. Expected {input_size}, got {X.shape[2]}"
     
     # Calculate split indices
     n_samples = len(X)
@@ -149,4 +168,4 @@ def prepare_data_for_model(
         shuffle=False  # No need to shuffle test data
     )
     
-    return train_loader, val_loader, test_loader 
+    return train_loader, val_loader, test_loader, input_size 

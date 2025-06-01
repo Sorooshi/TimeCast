@@ -152,15 +152,16 @@ class HybridTCNLSTM(BaseTimeSeriesModel):
         prediction = self.fc(last_output)
         return prediction
     
-    def get_default_parameters(self) -> Dict[str, Any]:
+    @staticmethod
+    def get_default_parameters() -> Dict[str, Any]:
         return {
-            'input_size': self.input_size,
-            'tcn_channels': self.tcn_channels,
-            'kernel_size': self.kernel_size,
-            'lstm_hidden_size': self.lstm_hidden_size,
-            'lstm_num_layers': self.lstm_num_layers,
-            'dropout': self.dropout,
-            'learning_rate': self.learning_rate
+            'input_size': 10,  # This will be overridden by actual data
+            'tcn_channels': [32, 64],
+            'kernel_size': 3,
+            'lstm_hidden_size': 64,
+            'lstm_num_layers': 2,
+            'dropout': 0.1,
+            'learning_rate': 1e-4
         }
     
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
