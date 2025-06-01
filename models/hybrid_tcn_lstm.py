@@ -27,16 +27,18 @@ class TemporalBlock(nn.Module):
         # First dilated causal convolution
         self.conv1 = nn.Conv1d(
             self.n_inputs, self.n_outputs, self.kernel_size,
-            stride=self.stride, padding=self.padding, dilation=self.dilation
+            stride=self.stride, padding=0, dilation=self.dilation
         )
+        self.chomp1 = nn.Identity()  # Remove time dimension chomping
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(self.dropout)
         
         # Second dilated causal convolution
         self.conv2 = nn.Conv1d(
             self.n_outputs, self.n_outputs, self.kernel_size,
-            stride=self.stride, padding=self.padding, dilation=self.dilation
+            stride=self.stride, padding=0, dilation=self.dilation
         )
+        self.chomp2 = nn.Identity()  # Remove time dimension chomping
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(self.dropout)
         
@@ -54,13 +56,20 @@ class TemporalBlock(nn.Module):
             
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass with residual connection."""
+        # Calculate padding to maintain sequence length
+        padding = (self.kernel_size - 1) * self.dilation
+        x_pad = nn.functional.pad(x, (padding, 0))
+        
         # First convolution block
-        out = self.conv1(x)
+        out = self.conv1(x_pad)
+        out = self.chomp1(out)
         out = self.relu1(out)
         out = self.dropout1(out)
         
-        # Second convolution block
-        out = self.conv2(out)
+        # Second convolution block with padding
+        out_pad = nn.functional.pad(out, (padding, 0))
+        out = self.conv2(out_pad)
+        out = self.chomp2(out)
         out = self.relu2(out)
         out = self.dropout2(out)
         
@@ -104,7 +113,7 @@ class HybridTCNLSTM(BaseTimeSeriesModel):
                     self.kernel_size,
                     stride=1,
                     dilation=dilation,
-                    padding=(self.kernel_size-1) * dilation,  # Causal padding
+                    padding=0,  # We'll handle padding in the forward pass
                     dropout=self.dropout
                 )
             )
