@@ -32,7 +32,7 @@ def load_hyperparameters(model_name: str, model_class) -> Dict[str, Any]:
     Returns:
         Dictionary of hyperparameters
     """
-    hyperparams_dir = Path("hyperparameters") / model_name
+    hyperparams_dir = Path("Hyperparameters") / model_name
     tuned_params_path = hyperparams_dir / "tuned_parameters.json"
     
     if tuned_params_path.exists():
@@ -114,12 +114,12 @@ def save_results(
     """Save training results, metrics, and predictions."""
     # Create base directories if they don't exist
     base_dir = Path(".")
-    results_dir = base_dir / "results" / model_name / mode
-    hyperparams_dir = base_dir / "hyperparameters" / model_name
-    predictions_dir = base_dir / "predictions" / model_name / mode
-    metrics_dir = base_dir / "metrics" / model_name / mode
-    history_dir = base_dir / "history" / model_name / mode
-    plots_dir = base_dir / "plots" / model_name / mode
+    results_dir = base_dir / "Results" / model_name / mode
+    hyperparams_dir = base_dir / "Hyperparameters" / model_name
+    predictions_dir = base_dir / "Predictions" / model_name / mode
+    metrics_dir = base_dir / "Metrics" / model_name / mode
+    history_dir = base_dir / "History" / model_name / mode
+    plots_dir = base_dir / "Plots" / model_name / mode
     
     # Create all directories
     for directory in [results_dir, hyperparams_dir, predictions_dir,
@@ -293,7 +293,7 @@ def main():
     args = parser.parse_args()
 
     # Create logs directory for tuning
-    logs_dir = Path("logs") / args.algorithm
+    logs_dir = Path("Logs") / args.algorithm
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     # Set up logging for hyperparameter tuning
@@ -326,7 +326,7 @@ def main():
         model_name = model_class.__name__
         
         # Update logs directory to use proper model name
-        logs_dir = Path("logs") / model_name
+        logs_dir = Path("Logs") / model_name
         logs_dir.mkdir(parents=True, exist_ok=True)
     except (ImportError, AttributeError):
         raise ValueError(f"Model {args.algorithm} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, PatchTST")

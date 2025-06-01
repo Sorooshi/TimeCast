@@ -96,12 +96,12 @@ Time_Series_Forecasting/
 │   ├── __init__.py
 │   ├── data_preprocessing.py
 │   └── training.py
-├── results/              # Training results
-├── hyperparameters/     # Tuned parameters
-├── predictions/         # Model predictions
-├── metrics/             # Evaluation metrics
-├── plots/              # Training plots
-├── logs/               # Training logs
+├── Results/              # Training results
+├── Hyperparameters/     # Tuned parameters
+├── Predictions/         # Model predictions
+├── Metrics/             # Evaluation metrics
+├── Plots/              # Training plots
+├── Logs/               # Training logs
 ├── main.py             # Main script
 └── requirements.txt    # Dependencies
 ```
@@ -125,12 +125,12 @@ The input data should be a CSV file with:
 ## Results and Outputs
 
 The package generates comprehensive outputs organized in different directories:
-- `results/`: Summary of training results
-- `hyperparameters/`: Tuned model parameters
-- `predictions/`: Model predictions
-- `metrics/`: Detailed evaluation metrics
-- `plots/`: Training curves and visualizations
-- `logs/`: Training logs
+- `Results/`: Summary of training results
+- `Hyperparameters/`: Tuned model parameters
+- `Predictions/`: Model predictions
+- `Metrics/`: Detailed evaluation metrics
+- `Plots/`: Training curves and visualizations
+- `Logs/`: Training logs
 
 ## Contributing
 
