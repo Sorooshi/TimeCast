@@ -10,6 +10,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
+import os
 
 def load_hyperparameters(model_name: str, model_class) -> Dict[str, Any]:
     """
@@ -48,7 +49,7 @@ def save_training_plots(history: Dict[str, List[float]], save_dir: Path, model_n
         save_dir: Directory to save the plots
         model_name: Name of the model for plot titles
     """
-    plt.style.use('seaborn')
+    plt.style.use('default')  # Use default style instead of seaborn
     
     # Create plots directory if it doesn't exist
     plots_dir = save_dir / "plots"
