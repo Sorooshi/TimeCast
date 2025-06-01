@@ -97,7 +97,7 @@ class TimeSeriesTrainer:
         Train the model and evaluate on validation and test sets.
         
         Returns:
-            history: Training history (losses)
+            history: Training history (losses and metrics)
             metrics: Best validation and test metrics (loss, R², MAPE)
             predictions: Predictions on validation and test sets
         """
@@ -110,6 +110,8 @@ class TimeSeriesTrainer:
         patience_counter = 0
         history = {
             'train_loss': [],
+            'train_r2': [],
+            'train_mape': [],
             'val_loss': [],
             'val_r2': [],
             'val_mape': []
@@ -117,10 +119,17 @@ class TimeSeriesTrainer:
         
         # Training loop
         for epoch in range(epochs):
+            # Train
             train_loss = self.train_epoch(train_loader, optimizer, criterion)
+            _, train_preds, train_targets, train_metrics = self.evaluate(train_loader, criterion)
+            
+            # Validate
             val_loss, val_preds, val_targets, val_metrics = self.evaluate(val_loader, criterion)
             
+            # Record history
             history['train_loss'].append(train_loss)
+            history['train_r2'].append(train_metrics['r2_score'])
+            history['train_mape'].append(train_metrics['mape'])
             history['val_loss'].append(val_loss)
             history['val_r2'].append(val_metrics['r2_score'])
             history['val_mape'].append(val_metrics['mape'])
