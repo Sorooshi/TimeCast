@@ -1,3 +1,12 @@
+"""
+Time Series Forecasting Package
+Main script for training and evaluating time series forecasting models.
+
+Author: Soroosh Shalileh
+Email: sr.shalileh@gmail.com
+Year: 2025
+"""
+
 import argparse
 import pandas as pd
 import torch

@@ -1,3 +1,12 @@
+"""
+Time Series Forecasting Package
+Base model class for all time series models.
+
+Author: Soroosh Shalileh
+Email: sr.shalileh@gmail.com
+Year: 2025
+"""
+
 import torch
 import torch.nn as nn
 from abc import ABC, abstractmethod

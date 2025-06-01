@@ -1,3 +1,12 @@
+"""
+Time Series Forecasting Package
+Data preprocessing and loading utilities.
+
+Author: Soroosh Shalileh
+Email: sr.shalileh@gmail.com
+Year: 2025
+"""
+
 import numpy as np
 import pandas as pd
 from typing import Tuple, Optional, List

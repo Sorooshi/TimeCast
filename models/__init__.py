@@ -1,3 +1,12 @@
+"""
+Time Series Forecasting Package
+Model registry and lazy loading implementation.
+
+Author: Soroosh Shalileh
+Email: sr.shalileh@gmail.com
+Year: 2025
+"""
+
 import importlib
 from typing import Dict, Type
 

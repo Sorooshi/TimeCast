@@ -1,3 +1,12 @@
+"""
+Time Series Forecasting Package
+Hybrid TCN-LSTM model implementation for time series forecasting.
+
+Author: Soroosh Shalileh
+Email: sr.shalileh@gmail.com
+Year: 2025
+"""
+
 import torch
 import torch.nn as nn
 from typing import Dict, Any, Tuple, List

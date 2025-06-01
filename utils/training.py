@@ -1,3 +1,12 @@
+"""
+Time Series Forecasting Package
+Training utilities and hyperparameter tuning functionality.
+
+Author: Soroosh Shalileh
+Email: sr.shalileh@gmail.com
+Year: 2025
+"""
+
 import torch
 import numpy as np
 from typing import Tuple, List, Dict, Any
