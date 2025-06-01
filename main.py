@@ -26,7 +26,7 @@ def load_hyperparameters(model_name: str, model_class) -> Dict[str, Any]:
     Load hyperparameters for the model, preferring tuned parameters if available.
     
     Args:
-        model_name: Name of the model/algorithm
+        model_name: Name of the model
         model_class: The model class to get default parameters from
         
     Returns:
@@ -265,8 +265,8 @@ def load_and_print_results(model_name: str, mode: str):
 def main():
     parser = argparse.ArgumentParser(description='Time Series Forecasting with PyTorch')
     
-    parser.add_argument('--algorithm', type=str, required=True,
-                      help='Name of the algorithm to use')
+    parser.add_argument('--model', type=str, required=True,
+                      help='Name of the model to use')
     
     parser.add_argument('--data_name', type=str, required=True,
                       help='Name of the dataset to use (without .csv extension)')
@@ -293,7 +293,7 @@ def main():
     args = parser.parse_args()
 
     # Create logs directory for tuning
-    logs_dir = Path("Logs") / args.algorithm
+    logs_dir = Path("Logs") / args.model
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     # Set up logging for hyperparameter tuning
@@ -302,13 +302,13 @@ def main():
         print(f"\nTuning logs will be saved to: {log_file}")
         
     if args.mode == 'report':
-        print(f"\nReporting results for {args.algorithm} on {args.data_name} dataset")
+        print(f"\nReporting results for {args.model} on {args.data_name} dataset")
         print("=" * 70)
         
         # Try to load both tuned and applied results
         found_any = False
         for mode in ['tune', 'apply']:
-            if load_and_print_results(args.algorithm, mode):
+            if load_and_print_results(args.model, mode):
                 found_any = True
                 print("\n" + "=" * 70)
         
@@ -320,7 +320,7 @@ def main():
     try:
         # Import directly from models package
         models = importlib.import_module('models')
-        model_class = getattr(models, args.algorithm)
+        model_class = getattr(models, args.model)
             
         # Get the actual model name from the class
         model_name = model_class.__name__
@@ -329,7 +329,7 @@ def main():
         logs_dir = Path("Logs") / model_name
         logs_dir.mkdir(parents=True, exist_ok=True)
     except (ImportError, AttributeError):
-        raise ValueError(f"Model {args.algorithm} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, PatchTST")
+        raise ValueError(f"Model {args.model} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, PatchTST")
 
     # Determine data path and load data
     if args.data_path is None:
