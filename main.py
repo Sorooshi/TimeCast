@@ -310,9 +310,14 @@ def main():
     # Dynamically import the model class
     try:
         model_module = importlib.import_module(f'models.{args.algorithm.lower()}')
-        model_class = getattr(model_module, args.algorithm)
+        # Try to get the class with exact name first, then try with capitalized name
+        try:
+            model_class = getattr(model_module, args.algorithm)
+        except AttributeError:
+            # If not found, try with capitalized name
+            model_class = getattr(model_module, args.algorithm.capitalize())
     except (ImportError, AttributeError):
-        raise ValueError(f"Model {args.algorithm} not found")
+        raise ValueError(f"Model {args.algorithm} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, PatchTST")
 
     # Determine data path and load data
     if args.data_path is None:
