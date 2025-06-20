@@ -131,7 +131,7 @@ class TimeSeriesTrainer:
             # Train
             train_loss = self.train_epoch(train_loader, optimizer, criterion)
             _, train_preds, train_targets, train_metrics = self.evaluate(train_loader, criterion)
-            
+               
             # Validate
             val_loss, val_preds, val_targets, val_metrics = self.evaluate(val_loader, criterion)
             
@@ -302,9 +302,19 @@ def tune_hyperparameters(
             print(f"Parameters used: {params}")
             raise e
     
-    # Create and run study
+    # Create and run study with logging
     study = optuna.create_study(direction='minimize')
-    study.optimize(objective, n_trials=n_trials)
+    
+    # Set up logging for optuna if available
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Add callback to log trial results
+    def logging_callback(study, trial):
+        logger.info(f"Trial {trial.number} finished with value: {trial.value:.4f}")
+        logger.info(f"Trial {trial.number} parameters: {trial.params}")
+    
+    study.optimize(objective, n_trials=n_trials, callbacks=[logging_callback])
     
     # Get best parameters and reconstruct hidden_sizes if needed
     best_params = {'input_size': input_size}
