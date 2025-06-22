@@ -1,5 +1,7 @@
 # Time Series Forecasting Package
 
+**🌍 Languages:** [English](README.md) | [Русский](README_ru.md) | [فارسی](README_fa.md)
+
 A comprehensive PyTorch-based package for time series forecasting that implements multiple state-of-the-art deep learning models with automated hyperparameter tuning, experiment management, and robust result tracking. **Mathematically validated** against formal LaTeX formulation with complete dimensional correspondence.
 
 ## 🚀 Key Features
