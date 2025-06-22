@@ -248,9 +248,9 @@ Time_Series_Forecasting/
 
 این پروژه تحت مجوز MIT منتشر شده است. برای جزئیات بیشتر فایل [LICENSE](LICENSE) را ببینید.
 
-## 📧 تماس
+## 📧 تماسs
 
-سروش شلیله - [sorooshshalileh@example.com](mailto:sorooshshalileh@example.com)
+سروش شلیله - [sorooshshalileh@example.com](mailto:sr.shalileh@gmail.com)
 
 لینک پروژه: [https://github.com/Sorooshi/Time_Series_Forecasting](https://github.com/Sorooshi/Time_Series_Forecasting)
 
