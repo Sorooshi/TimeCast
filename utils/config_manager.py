@@ -48,6 +48,7 @@ def load_hyperparameters(model_name: str, model_class, use_tuned: bool = True) -
 def filter_model_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Filter out non-model parameters before creating the model.
+    Only includes sequence_length for models that need it (like MLP).
     
     Args:
         params: Dictionary of all parameters
@@ -55,6 +56,27 @@ def filter_model_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with only model parameters
     """
+    # Get the model class name from the call stack to determine which parameters to include
+    import inspect
+    frame = inspect.currentframe()
+    try:
+        # Look through the call stack to find model class information
+        for f in inspect.getouterframes(frame):
+            if 'model_class' in f.frame.f_locals:
+                model_class = f.frame.f_locals['model_class']
+                model_name = model_class.__name__ if hasattr(model_class, '__name__') else str(model_class)
+                
+                # Only include sequence_length for models that need it
+                if model_name == 'MLP':
+                    return {k: v for k, v in params.items() 
+                            if k not in ['experiment_description']}
+                else:
+                    return {k: v for k, v in params.items() 
+                            if k not in ['sequence_length', 'experiment_description']}
+    finally:
+        del frame
+    
+    # Fallback: exclude sequence_length by default for safety
     return {k: v for k, v in params.items() 
             if k not in ['sequence_length', 'experiment_description']}
 

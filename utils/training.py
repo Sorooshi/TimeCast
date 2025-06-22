@@ -238,7 +238,8 @@ def tune_hyperparameters(
     n_trials: int = 100,
     epochs: int = 100,
     patience: int = 25,
-    input_size: int = None
+    input_size: int = None,
+    sequence_length: int = 10
 ) -> Tuple[Dict[str, Any], Dict[str, float]]:
     """
     Tune hyperparameters using Optuna.
@@ -251,18 +252,24 @@ def tune_hyperparameters(
         epochs: Maximum number of epochs per trial
         patience: Early stopping patience
         input_size: Number of input features
+        sequence_length: Length of input sequences
+        sequence_length: Length of input sequences
         
     Returns:
         best_params: Best hyperparameters found
         metrics: Validation metrics for best model
     """
     def objective(trial):
-        # Create a temporary model instance with input_size to get parameter ranges
-        temp_model = model_class(input_size=input_size)
-        param_ranges = temp_model.get_parameter_ranges()
+        # Create a temporary model instance to get parameter ranges
+        # Only pass sequence_length to models that need it (like MLP)
+        if model_class.__name__ == 'MLP':
+            temp_model = model_class(input_size=input_size, sequence_length=sequence_length)
+            params = {'input_size': input_size, 'sequence_length': sequence_length}
+        else:
+            temp_model = model_class(input_size=input_size)
+            params = {'input_size': input_size}
         
-        # Start with input_size
-        params = {'input_size': input_size}
+        param_ranges = temp_model.get_parameter_ranges()
         hidden_sizes = []  # Track hidden sizes separately
         
         for param_name, range_value in param_ranges.items():
@@ -317,7 +324,10 @@ def tune_hyperparameters(
     study.optimize(objective, n_trials=n_trials, callbacks=[logging_callback])
     
     # Get best parameters and reconstruct hidden_sizes if needed
-    best_params = {'input_size': input_size}
+    if model_class.__name__ == 'MLP':
+        best_params = {'input_size': input_size, 'sequence_length': sequence_length}
+    else:
+        best_params = {'input_size': input_size}
     hidden_sizes = []
     
     # Extract parameters from study's best trial

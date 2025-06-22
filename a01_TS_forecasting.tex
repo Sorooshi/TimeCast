@@ -1,0 +1,278 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb, amsthm, algorithm, algpseudocode}
+\usepackage{hyperref}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\usepackage[mathcal]{euscript} % For script fonts
+
+\usepackage{enumitem}
+\newcommand{\subscript}[2]{$#1 _ #2$}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+
+\title{Time Series Forecasting (Merchant Consumption)}
+\author{Soroosh Shalileh}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% Abstract
+\begin{abstract}
+...
+\end{abstract}
+
+
+\section{Problem Formulation}
+
+The objective of the current work is to forecast the \textbf{total consumption} for a given category of merchants over time using historical transaction data.
+
+
+Let \( t \in \{1, 2, \dots, T\} \) denote discrete time steps, which may correspond to days, weeks, or months. Let \( \mathcal{M}_c = \{m_1, m_2, \dots, m_N\} \) represent the set of merchants in category \( c \), where \( N \) is the number of merchants. For each merchant \( m \in \mathcal{M}_c \), let \( x_{m,t} \in \mathbb{R} \) denote the transaction volume or total spend at time \( t \).
+
+We define the vector of merchant-level consumption at time \( t \) as
+\[
+X_t = \{x_{m,t} \mid m \in \mathcal{M}_c\} \in \mathbb{R}^N,
+\]
+and the total category-level consumption as
+\[
+y_t = \sum_{m \in \mathcal{M}_c} x_{m,t}.
+\]
+
+
+Let \( \mathcal{H}_t = \{X_{t-k}, X_{t-k+1}, \dots, X_t\} \) denote the historical sequence of merchant-level transaction data for the past \( k+1 \) time steps.
+The forecasting objective is to learn a function \( f_\theta \), parameterized by (deep learning) model parameters \( \theta \), such that
+\[
+\hat{y}_{t+1} = f_\theta(\mathcal{H}_t),
+\]
+
+
+
+This formulation supports several forecasting variants. One can perform one-step forecasting (predicting \( y_{t+1} \)), multi-step forecasting (predicting \( y_{t+1}, y_{t+2}, \dots, y_{t+H} \)), or even jointly forecast the category total and the individual merchant-level consumptions.
+
+\section{Deep Learning Models for Forecasting}
+
+We treat the problem as a sequence regression task, where the input is a time-series sequence of merchant-level transaction vectors, and the output is the future total consumption value. Several model families are suitable for this task.
+
+\subsection{Input Representation}
+
+At each time step \( t \), the input feature vector is
+\[
+X_t = [x_{m_1,t}, x_{m_2,t}, \dots, x_{m_N,t}] \in \mathbb{R}^N
+\]
+This vector may be optionally augmented with additional contextual features such as time-of-day, day-of-week, holiday indicators, and merchant embeddings if available. The model receives a sequence \( \mathcal{H}_t = \{X_{t-k}, \dots, X_t\} \) of such vectors as input. \footnote{Each vector \( X_t \in \mathbb{R}^N \) represents the transaction values across \( N \) merchant-category combinations (e.g., spending at each merchant or category at time \( t \)). To prepare this data for (deep learning) models, we stack these vectors along the temporal axis to form a matrix \( \mathcal{H}_t \in \mathbb{R}^{(k+1) \times N} \), where each row corresponds to the transactions at a specific time step. This structure allows models such as LSTMs, TCNs, and Transformers to process the sequence as a multivariate time series input.}
+
+\subsection{Model Architectures}
+
+\paragraph{Fully Connected Network (MLP):} A simple baseline approach involves flattening the entire input history and passing it through a multi-layer perceptron (MLP). That is, the input is reshaped into a vector in \( \mathbb{R}^{(k+1) \times N} \), which is then fed into dense layers to predict \( y_{t+1} \). While MLPs are not inherently designed for sequential data, they have been effectively applied in time series forecasting tasks. For instance, the study by Zhang et al. (2018) demonstrated the use of MLPs in forecasting electricity consumption, highlighting their capability in capturing complex nonlinear relationships in time series data \cite{zhang2018electricity}.
+
+\paragraph{Recurrent Neural Networks (LSTM/GRU):} Recurrent models process the temporal sequence \( \{X_{t-k}, \dots, X_t\} \) step by step, maintaining a hidden state that captures temporal dependencies. These models are well-suited for sequential data and can model long-term patterns. Long Short-Term Memory (LSTM) networks, in particular, have been widely used in time series forecasting. For example, the work by Elsworth and Güttel (2020) applied LSTM networks for time series forecasting using a symbolic approach, demonstrating their effectiveness in capturing temporal dynamics \cite{elsworth2020time}. A simplified alternative to LSTM is the Gated Recurrent Unit (GRU), which merges the forget and input gates into a single update gate and combines the hidden state and cell state, resulting in a more computationally efficient model. GRUs have shown competitive performance across various sequential prediction tasks \cite{cho2014learning}.
+
+
+\paragraph{Temporal Convolutional Networks (TCNs):} TCNs use one-dimensional convolutions over time to capture local and hierarchical temporal patterns. They are efficient and effective for long sequences and avoid the vanishing gradient problems of RNNs. The study by Bai et al. (2018) provided a comprehensive empirical evaluation of TCNs, showing their superior performance over RNNs in various sequence modeling tasks, including time series forecasting \cite{bai2018empirical}.
+
+
+
+\paragraph{Convolutional LSTM (ConvLSTM):} ConvLSTM extends traditional LSTM networks by incorporating convolution operations into both the input-to-state and state-to-state transitions. This architecture is particularly effective for modeling spatiotemporal data, where inputs exhibit both spatial and temporal dependencies. In the context of merchant transaction data, if merchants are organized based on geographic or semantic relationships, ConvLSTM can capture localized patterns over time. For instance, Shi et al. (2015) introduced ConvLSTM for precipitation nowcasting, demonstrating its superiority over traditional LSTM models in capturing spatiotemporal correlations \cite{shi2015convolutional}. Further applications, such as in the ED-ConvLSTM model for forecasting global ionospheric total electron content, have showcased ConvLSTM's capability in handling complex spatiotemporal forecasting tasks \cite{xia2022edconv}.
+
+\paragraph{Hybrid TCN-LSTM Models:} Combining Temporal Convolutional Networks (TCNs) with LSTM architectures leverages the strengths of both models—TCNs excel at capturing local temporal patterns through dilated causal convolutions \footnote{Here "causality" refers to a convolution operation that does not use any future time steps when predicting the current output.}, while LSTMs are adept at modeling long-term dependencies. In a hybrid TCN-LSTM model, the TCN component first processes the input sequence to extract high-level temporal features, which are then fed into the LSTM to capture sequential dependencies over longer horizons. This architecture has been effectively applied in various forecasting tasks. For example, a hybrid model combining TCN and LSTM demonstrated improved performance in wind power prediction by effectively capturing both short-term fluctuations and long-term trends \cite{wang2024hybrid}. Similarly, in the realm of electric load forecasting, integrating TCN with LSTM has led to enhanced predictive accuracy, highlighting the synergy between these architectures \cite{rao2024hybrid}.
+
+
+
+
+\paragraph{Transformer Encoder:} Transformer-based models can be used to process the input sequence as a set of time-embedded transaction vectors. These models use self-attention mechanisms to learn dependencies across time steps. The sequence is encoded, and a learned summary representation is passed through a feedforward network to predict \( y_{t+1} \). The Transformer architecture, introduced by Vaswani et al. (2017), has been adapted for time series forecasting in various studies. For instance, the PatchTST model proposed by Nie et al. (2022) demonstrated the effectiveness of Transformers in long-term time series forecasting by segmenting time series into patches and applying channel-independent attention mechanisms \cite{nie2022time}. Other adaptations include the Informer model, which improves efficiency via a ProbSparse attention mechanism \footnote{The ProbSparse attention mechanism, reduces the quadratic complexity of full self-attention by selecting only the top-\( u \) queries with the largest sparsity scores. This enables the model to focus on the most informative parts of long input sequences while maintaining computational efficiency.}
+tailored for long-sequence forecasting \cite{zhou2021informer}, and Autoformer, which incorporates a decomposition block to explicitly model seasonal and trend components \cite{wu2021autoformer}. These improvements make Transformer-based models particularly suitable for multiscale and long-horizon forecasting tasks.
+
+% \paragraph{N-BEATS:} N-BEATS (Neural Basis Expansion Analysis for Time Series) is a fully connected deep neural architecture designed for univariate time series forecasting \cite{oreshkin2019nbeats}. It avoids recurrence and convolutions by relying solely on stacks of fully connected layers that iteratively decompose the input signal into trend and seasonality components. Each block outputs both a backcast (reconstruction of the input) and a forecast (prediction of future values), and residuals are passed to subsequent blocks. This modular design enables both high accuracy and interpretability, especially when using predefined basis functions for trend and seasonality.
+
+
+
+
+\subsection{Loss Function}
+
+Assuming the model outputs a scalar prediction \( \hat{y}_{t+1} \), the objective is to minimize the mean squared error (MSE) over all training sequences:
+\[
+\mathcal{L}_{\text{MSE}} = \frac{1}{T-k} \sum_{t=k}^{T-1} \left( \hat{y}_{t+1} - y_{t+1} \right)^2.
+\]
+Other loss functions such as mean absolute error (MAE) or Huber loss can be employed depending on the characteristics of the target distribution. Additionally, multi-task losses can be introduced if merchant-level forecasts are also required.
+
+
+\section{Experimental results}
+\label{s:results}
+
+
+\begin{table}[htbp]
+\centering
+\caption{Evaluation Metrics (MAE, MAPE, \( R^2 \)) for Each Model Across Consumption Categories}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Model} & \textbf{Category} & \textbf{MAE} & \textbf{MAPE (\%)} & \textbf{\( R^2 \)} \\
+\midrule
+\midrule
+
+\multirow{4}{*}{MLP} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+\midrule
+\multirow{4}{*}{LSTM} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+% \midrule
+% \multirow{4}{*}{GRU} 
+%   & Food       &  \\
+%   & Non-food   &  \\
+%   & Cafe       &  \\
+%   & Service    &  \\
+
+\midrule
+\multirow{4}{*}{TCN} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+\midrule
+\multirow{4}{*}{Hybrid TCN-LSTM} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+\midrule
+\multirow{4}{*}{Transformer} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+
+\midrule
+\multirow{4}{*}{PatchTST (being implemented)} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+\midrule
+\multirow{4}{*}{Informer (will implement later)} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+\midrule
+\multirow{4}{*}{Autoformer (will implement later)} 
+  & Food       &  \\
+  & Non-food   &  \\
+  & Cafe       &  \\
+  & Service    &  \\
+
+% \midrule
+% \multirow{4}{*}{NBeats (will implement later)} 
+%   & Food       &  \\
+%   & Non-food   &  \\
+%   & Cafe       &  \\
+  & Service    &  \\
+
+\bottomrule
+\end{tabular}
+\label{tab:model-performance}
+\end{table}
+
+% \section{Conclusion}
+
+% We have mathematically formalized the task of forecasting total consumption for a merchant category using historical transaction data. This formulation allows us to leverage deep learning models such as MLPs, RNNs, TCNs, and Transformers for time-series prediction. The choice of architecture depends on the temporal dynamics of the data, the required forecasting horizon, and computational considerations. In subsequent work, we implement these models and evaluate their performance on real transaction datasets.
+
+
+% \bibliography{references}
+\begin{thebibliography}{9}
+
+\bibitem{zhang2018electricity}
+Zhang, G., Eddy Patuwo, B., \& Hu, M. Y. (1998).
+Forecasting with artificial neural networks: The state of the art.
+\textit{International Journal of Forecasting}, 14(1), 35–62.
+\url{https://doi.org/10.1016/S0169-2070(97)00044-7}
+
+\bibitem{elsworth2020time}
+Elsworth, S., \& Güttel, S. (2020).
+Time Series Forecasting Using LSTM Networks: A Symbolic Approach.
+\textit{arXiv preprint arXiv:2003.05672}.
+\url{https://arxiv.org/abs/2003.05672}
+
+\bibitem{cho2014learning}
+Cho, K., van Merriënboer, B., Gulcehre, C., Bahdanau, D., Bougares, F., Schwenk, H., \& Bengio, Y. (2014).  
+Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation.  
+\textit{arXiv preprint arXiv:1406.1078}.  
+\url{https://arxiv.org/abs/1406.1078} 
+
+\bibitem{bai2018empirical}
+Bai, S., Kolter, J. Z., \& Koltun, V. (2018).
+An empirical evaluation of generic convolutional and recurrent networks for sequence modeling.
+\textit{arXiv preprint arXiv:1803.01271}.
+\url{https://arxiv.org/abs/1803.01271}
+
+
+\bibitem{shi2015convolutional}
+Shi, X., Chen, Z., Wang, H., Yeung, D.-Y., Wong, W.-K., \& Woo, W.-C. (2015).
+Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting.
+\textit{Advances in Neural Information Processing Systems}, 28.
+\url{https://arxiv.org/abs/1506.04214}
+
+\bibitem{xia2022edconv}
+Xia, X., Zhang, Y., Wang, H., \& Liu, Y. (2022).
+ED-ConvLSTM: A Novel Global Ionospheric Total Electron Content Medium-Term Forecast Model.
+\textit{Space Weather}, 20(3), e2021SW002959.
+\url{https://doi.org/10.1029/2021SW002959}
+
+\bibitem{wang2024hybrid}
+Wang, Y., Zhang, L., \& Liu, H. (2024).
+A hybrid deep learning model based on parallel architecture TCN-LSTM with Savitzky-Golay filter for wind power prediction.
+\textit{Energy}, 290, 120000.
+
+
+\bibitem{rao2024hybrid}
+Rao, A. A., Rao, P. M., \& Kumar, D. V. (2024).
+Hybrid TCN-Based Bi-GRU-LSTM for Enhanced Long-Term Electric Load Forecasting.
+\textit{Journal of Electrical Systems}, 20(3).
+\url{https://journal.esrgroups.org/jes/article/view/7486}
+
+\bibitem{vaswani2017attention}
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., \& Polosukhin, I. (2017).
+Attention is all you need.
+\textit{Advances in Neural Information Processing Systems}, 30.
+\url{https://arxiv.org/abs/1706.03762}
+
+\bibitem{nie2022time}
+Nie, Y., Nguyen, N. H., Sinthong, P., \& Kalagnanam, J. (2022).
+A Time Series is Worth 64 Words: Long-term Forecasting with Transformers.
+\textit{arXiv preprint arXiv:2211.14730}.
+\url{https://arxiv.org/abs/2211.14730}
+
+\bibitem{zhou2021informer}
+Zhou, H., Zhang, S., Peng, J., Zhang, S., Li, J., Xiong, H., \& Zhang, W. (2021). 
+Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting. 
+\textit{Proceedings of the AAAI Conference on Artificial Intelligence}, 35(12), 11106–11115. 
+\url{https://arxiv.org/abs/2012.07436}
+
+\bibitem{wu2021autoformer}
+Wu, H., Xu, J., Wang, J., \& Long, M. (2021). 
+Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting. 
+\textit{Advances in Neural Information Processing Systems (NeurIPS)}, 34, 22419–22430. 
+\url{https://arxiv.org/abs/2106.13008}
+
+\end{thebibliography}
+
+\end{document}

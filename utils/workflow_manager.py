@@ -34,7 +34,7 @@ def load_model_class(model_name: str):
         actual_model_name = model_class.__name__
         return model_class, actual_model_name
     except (ImportError, AttributeError):
-        raise ValueError(f"Model {model_name} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, PatchTST")
+        raise ValueError(f"Model {model_name} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, MLP")
 
 
 def setup_logging(model_name: str, mode: str) -> Path:
@@ -111,7 +111,8 @@ def run_tune_mode(
         n_trials=args.n_trials,
         epochs=args.epochs,
         patience=args.patience,
-        input_size=input_size
+        input_size=input_size,
+        sequence_length=args.sequence_length
     )
     
     logger.info("Hyperparameter tuning completed")

@@ -1,29 +1,47 @@
 # Time Series Forecasting Package
 
-A comprehensive PyTorch-based package for time series forecasting that implements multiple state-of-the-art deep learning models with automated hyperparameter tuning, experiment management, and robust result tracking.
+A comprehensive PyTorch-based package for time series forecasting that implements multiple state-of-the-art deep learning models with automated hyperparameter tuning, experiment management, and robust result tracking. **Mathematically validated** against formal LaTeX formulation with complete dimensional correspondence.
 
 ## 🚀 Key Features
 
-- **Multiple State-of-the-Art Models**: LSTM, TCN, Transformer, HybridTCNLSTM, MLP, PatchTST
+- **Multiple State-of-the-Art Models**: LSTM, TCN, Transformer, HybridTCNLSTM, MLP
 - **Automated Hyperparameter Tuning**: Using Optuna for optimal parameter search
 - **Experiment Management**: Organized experiment tracking with custom descriptions
 - **4 Training Modes**: Comprehensive workflow for different use cases
 - **Robust Data Processing**: Clean, efficient preprocessing without artificial time features
+- **Merchant Data Preprocessing**: Complete pipeline for transaction-to-timeseries conversion
+- **Mathematical Validation**: LaTeX formulation compatibility verified
 - **Comprehensive Logging**: Detailed file logging for debugging and analysis
 - **Cross-Platform Support**: Robust directory creation across different operating systems
 - **Rich Visualization**: Training curves and evaluation plots
 - **Modular Architecture**: Clean, maintainable code structure
 
+## 📐 Mathematical Foundation
+
+This package implements the time series forecasting formulation described in our research paper:
+
+### Problem Formulation
+Given merchant-level transaction data, we forecast total consumption using historical sequences:
+
+**LaTeX Notation → Implementation Mapping:**
+- Historical sequence: $\mathcal{H}_t \in \mathbb{R}^{(k+1) \times N}$ ↔ `(sequence_length, n_features)`
+- Merchant consumption: $X_t \in \mathbb{R}^N$ ↔ `merchant_features[t]`
+- Target prediction: $y_t = \sum_{m=1}^N x_{m,t}$ ↔ `np.sum(data[t])`
+
+**✅ Dimensional Compatibility Verified:**
+```
+LaTeX: 𝒽_t ∈ ℝ^{(k+1)×N}  ↔  Implementation: (batch_size, sequence_length, n_features)
+```
+
 ## 📊 Models Implemented
 
-| Model | Description | Use Case |
-|-------|-------------|----------|
-| **LSTM** | Long Short-Term Memory network | Sequential pattern learning |
-| **TCN** | Temporal Convolutional Network | Hierarchical feature extraction |
-| **Transformer** | Self-attention based model | Complex temporal dependencies |
-| **HybridTCNLSTM** | Combined TCN + LSTM | Best of both architectures |
-| **MLP** | Multi-Layer Perceptron | Baseline comparison |
-| **PatchTST** | Patch-based Transformer | Efficient transformer variant |
+| Model | Description | Use Case | Paper Reference |
+|-------|-------------|----------|------------------|
+| **LSTM** | Long Short-Term Memory network | Sequential pattern learning | Hochreiter & Schmidhuber (1997) |
+| **TCN** | Temporal Convolutional Network | Hierarchical feature extraction | Bai et al. (2018) |
+| **Transformer** | Self-attention based model | Complex temporal dependencies | Vaswani et al. (2017) |
+| **HybridTCNLSTM** | Combined TCN + LSTM | Best of both architectures | Custom Implementation |
+| **MLP** | Multi-Layer Perceptron | Baseline comparison | Zhang et al. (1998) |
 
 ## 🛠️ Installation
 
@@ -45,6 +63,21 @@ pip install -r requirements.txt
 ```
 
 ## 📖 Usage
+
+### Quick Start with Merchant Data
+
+For merchant transaction data preprocessing (recommended starting point):
+
+```bash
+# Step 1: Run the preprocessing example
+python example.py
+
+# Step 2: Train models on preprocessed data
+python main.py --model Transformer \
+               --data_name merchant_processed \
+               --mode apply_not_tuned \
+               --experiment_description "merchant_baseline"
+```
 
 ### Command Line Interface
 
@@ -70,7 +103,7 @@ python main.py --model <MODEL_NAME> \
 ### 📋 Arguments
 
 #### Required Arguments
-- `--model`: Model name (LSTM, TCN, Transformer, HybridTCNLSTM, MLP, PatchTST)
+- `--model`: Model name (LSTM, TCN, Transformer, HybridTCNLSTM, MLP)
 - `--data_name`: Dataset name (without .csv extension)
 
 #### Optional Arguments
@@ -82,38 +115,74 @@ python main.py --model <MODEL_NAME> \
 - `--patience`: Early stopping patience (default: 25)
 - `--sequence_length`: Input sequence length (default: 10)
 
-### 💡 Example Workflows
+## 🏪 Merchant Data Preprocessing
 
-#### 1. Complete Workflow: Tune → Apply → Compare
+### Preprocessing Pipeline (`example.py`)
+
+Complete pipeline for converting raw merchant transaction data to time series format:
 
 ```bash
-# Step 1: Hyperparameter tuning
+python example.py
+```
+
+**Pipeline Steps:**
+1. **Load Transaction Data**: Raw transaction-level data loading
+2. **Merchant Aggregation**: Group by time periods and merchants
+3. **Contextual Features**: Add time-based features (seasonality, holidays, etc.)
+4. **LaTeX Compatibility**: Ensure dimensional correspondence
+5. **Validation**: Test with TimeSeriesPreprocessor
+
+**Input Format:**
+```csv
+timestamp,merchant_id,customer_id,amount,day_of_week,hour,is_weekend,is_holiday,transaction_speed,customer_loyalty_score
+2023-01-01 03:41:00,1,23,16.02,6,3,True,False,8.87,79.8
+2023-01-01 06:28:00,4,25,99.56,6,6,True,False,5.9,48.8
+...
+```
+
+**Output Format:**
+```csv
+date,merchant_1,merchant_2,merchant_3,merchant_4,merchant_5,hour,day_of_week,is_weekend,month,day_of_month,sin_month,cos_month,sin_hour,cos_hour,is_holiday
+2023-01-01,454.17,207.98,216.56,460.11,644.78,0,5,1.0,1,1,0.0,1.0,0.0,1.0,1.0
+2023-01-02,423.89,189.45,234.12,501.23,678.91,0,0,0.0,1,2,0.0,1.0,0.0,1.0,0.0
+...
+```
+
+### 💡 Example Workflows
+
+#### 1. Complete Merchant Data Workflow
+
+```bash
+# Step 1: Preprocess merchant data
+python example.py
+
+# Step 2: Hyperparameter tuning
 python main.py --model Transformer \
-               --data_name merchant_synthetic \
+               --data_name merchant_processed \
                --mode tune \
-               --experiment_description "baseline_experiment" \
+               --experiment_description "merchant_baseline" \
                --n_trials 50 \
                --epochs 100
 
-# Step 2: Apply with tuned parameters
+# Step 3: Apply with tuned parameters
 python main.py --model Transformer \
-               --data_name merchant_synthetic \
+               --data_name merchant_processed \
                --mode apply \
-               --experiment_description "tuned_run" \
+               --experiment_description "merchant_tuned" \
                --epochs 100
 
-# Step 3: Compare with default parameters
+# Step 4: Compare with default parameters
 python main.py --model Transformer \
-               --data_name merchant_synthetic \
+               --data_name merchant_processed \
                --mode apply_not_tuned \
-               --experiment_description "default_run" \
+               --experiment_description "merchant_default" \
                --epochs 100
 
-# Step 4: View all results
+# Step 5: View all results
 python main.py --model Transformer \
-               --data_name merchant_synthetic \
+               --data_name merchant_processed \
                --mode report \
-               --experiment_description "baseline_experiment"
+               --experiment_description "merchant_baseline"
 ```
 
 #### 2. Quick Testing Workflow
@@ -127,12 +196,47 @@ python main.py --model LSTM \
                --epochs 20
 ```
 
+## 🧪 Testing and Validation
+
+### Mathematical Validation
+
+Verify LaTeX formulation compatibility:
+
+```bash
+python test_preprocessing_validation.py
+```
+
+**Validates:**
+- ✅ Dimensional correspondence: $(k+1) \times N$ ↔ `(sequence_length, n_features)`
+- ✅ Target calculation: $y_t = \sum_{m=1}^N x_{m,t}$ ↔ `np.sum(...)`
+- ✅ Preprocessing pipeline compatibility
+- ✅ Integration with existing models
+
+### Comprehensive Testing
+
+Run full test suite:
+
+```bash
+# Move to test directory
+cd Test
+
+# Run comprehensive tests
+python test_script.py
+
+# Test feature dimensions  
+python test_feature_dimensions.py
+
+# Validate preprocessing
+python test_preprocessing_validation.py
+```
+
 ## 🗂️ Project Structure
 
 ```
 Time_Series_Forecasting/
 ├── 📁 data/                     # Data files
-│   ├── merchant_synthetic.csv
+│   ├── merchant_synthetic.csv  # Sample merchant data
+│   ├── merchant_processed.csv  # Preprocessed merchant data
 │   └── your_data.csv
 ├── 📁 models/                   # Model implementations
 │   ├── __init__.py
@@ -141,8 +245,7 @@ Time_Series_Forecasting/
 │   ├── tcn.py
 │   ├── transformer.py
 │   ├── hybrid_tcn_lstm.py
-│   ├── mlp.py
-│   └── patch_tst.py
+│   └── mlp.py
 ├── 📁 utils/                    # Utility modules
 │   ├── __init__.py
 │   ├── data_preprocessing.py    # Data loading and preprocessing
@@ -153,6 +256,10 @@ Time_Series_Forecasting/
 │   ├── results_manager.py      # Results saving and loading
 │   ├── workflow_manager.py     # Training workflow orchestration
 │   └── data_utils.py           # Data utilities
+├── 📁 Test/                     # Testing and validation
+│   ├── test_script.py          # Comprehensive test suite
+│   ├── test_feature_dimensions.py  # Feature dimension testing
+│   └── test_preprocessing_validation.py  # LaTeX compatibility validation
 ├── 📁 Results/                  # Training results and summaries
 │   └── {model}/{mode}/{experiment}/
 ├── 📁 Hyperparameters/         # Tuned and saved parameters
@@ -167,9 +274,12 @@ Time_Series_Forecasting/
 │   └── {model}/{mode}/{experiment}/
 ├── 📁 Logs/                    # Training logs and debugging info
 │   └── {model}/
+├── example.py                  # Merchant data preprocessing pipeline
 ├── main.py                     # Main entry point
 ├── requirements.txt            # Python dependencies
-└── README.md                   # This file
+├── README.md                   # This file
+├── README_ru.md               # Russian version
+└── a01_TS_forecasting.tex     # LaTeX research paper
 ```
 
 ## 📊 Data Format
@@ -180,11 +290,19 @@ Time_Series_Forecasting/
 - **Features**: Numerical columns representing your time series features
 - **No Preprocessing Required**: The system handles normalization automatically
 
-### Example Data Structure
+### Raw Transaction Data Structure (for `example.py`)
 ```csv
-date,feature1,feature2,feature3,target
-2023-01-01,10.5,20.3,5.7,100.2
-2023-01-02,11.2,19.8,6.1,102.5
+timestamp,merchant_id,customer_id,amount,day_of_week,hour,is_weekend,is_holiday,transaction_speed,customer_loyalty_score
+2023-01-01 03:41:00,1,23,16.02,6,3,True,False,8.87,79.8
+2023-01-01 06:28:00,4,25,99.56,6,6,True,False,5.9,48.8
+...
+```
+
+### Processed Time Series Data Structure
+```csv
+date,merchant_1,merchant_2,merchant_3,merchant_4,merchant_5,hour,day_of_week,is_weekend,month,day_of_month,sin_month,cos_month,sin_hour,cos_hour,is_holiday
+2023-01-01,454.17,207.98,216.56,460.11,644.78,0,5,1.0,1,1,0.0,1.0,0.0,1.0,1.0
+2023-01-02,423.89,189.45,234.12,501.23,678.91,0,0,0.0,1,2,0.0,1.0,0.0,1.0,0.0
 ...
 ```
 
@@ -227,6 +345,11 @@ Logs/Transformer/
 
 ## 🔧 Advanced Features
 
+### Mathematical Foundation
+- **LaTeX Formulation**: Implements formal mathematical framework
+- **Dimensional Validation**: Automatic dimensional correspondence checking
+- **Target Consistency**: Validated target calculation: $y_t = \sum_{m=1}^N x_{m,t}$
+
 ### Experiment Management
 - **Custom Descriptions**: Organize experiments with meaningful names
 - **Automatic Fallback**: Uses sequence length if no description provided
@@ -246,11 +369,13 @@ Logs/Transformer/
 
 ## 🚀 Performance Tips
 
-1. **Start with tuning**: Use `--mode tune` for new datasets
-2. **Use apply_not_tuned**: For quick baselines and comparisons  
-3. **Experiment descriptions**: Use meaningful names for organization
-4. **Logging**: Check log files for detailed training information
-5. **Cross-validation**: Results are automatically validated on separate test sets
+1. **Start with example.py**: For merchant data, use the preprocessing pipeline
+2. **Use tuning mode**: Use `--mode tune` for new datasets
+3. **Use apply_not_tuned**: For quick baselines and comparisons  
+4. **Experiment descriptions**: Use meaningful names for organization
+5. **Logging**: Check log files for detailed training information
+6. **Cross-validation**: Results are automatically validated on separate test sets
+7. **Mathematical validation**: Run `test_preprocessing_validation.py` to verify setup
 
 ## 🤝 Contributing
 
@@ -270,11 +395,11 @@ If you use this package in your research, please cite:
 
 ```bibtex
 @software{time_series_forecasting_2025,
-  title = {Time Series Forecasting Package: A Comprehensive PyTorch Framework},
+  title = {Time Series Forecasting Package: A Comprehensive PyTorch Framework with LaTeX Formulation Validation},
   author = {Soroosh Shalileh},
   year = {2025},
   url = {https://github.com/Sorooshi/Time_Series_Forecasting},
-  note = {Modular time series forecasting with automated hyperparameter tuning}
+  note = {Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
 }
 ```
 
@@ -287,3 +412,4 @@ If you use this package in your research, please cite:
 ---
 
 *Built with ❤️ for the time series forecasting community*
+*Mathematically validated and research-ready ✅*

@@ -16,7 +16,6 @@ _MODEL_REGISTRY: Dict[str, str] = {
     'TCN': '.tcn',
     'Transformer': '.transformer',
     'HybridTCNLSTM': '.hybrid_tcn_lstm',
-    'PatchTST': '.patch_tst',
     'MLP': '.mlp'
 }
 
