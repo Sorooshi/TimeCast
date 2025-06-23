@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 from typing import Dict, Any, Tuple, List
 from .base_model import BaseTimeSeriesModel
+import numpy as np
 
 class TemporalBlock(nn.Module):
     def __init__(

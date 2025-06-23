@@ -21,7 +21,8 @@ class TimeSeriesPreprocessor:
     ):
         self.sequence_length = sequence_length
         self.normalization = normalization
-        self.scalers = None  # Will store fitted scalers
+        self.scalers = None  # Will store fitted scalers for features
+        self.target_scaler = None  # Will store scaler for targets
         
     def fit_scalers(self, data: np.ndarray) -> None:
         """Fit scalers on training data."""
@@ -44,7 +45,30 @@ class TimeSeriesPreprocessor:
             feature_data = data[:, i].reshape(-1, 1)
             scaler.fit(feature_data)
             self.scalers.append(scaler)
-    
+            
+        # Fit target scaler on sum of all features (total consumption)
+        target_values = np.sum(data, axis=1).reshape(-1, 1)
+        if self.normalization == 'standard':
+            self.target_scaler = StandardScaler()
+        elif self.normalization == 'minmax':
+            self.target_scaler = MinMaxScaler()
+        
+        self.target_scaler.fit(target_values)
+        
+    def normalize_targets(self, targets: np.ndarray) -> np.ndarray:
+        """Apply normalization to target values."""
+        if self.normalization is None or self.target_scaler is None:
+            return targets
+            
+        return self.target_scaler.transform(targets.reshape(-1, 1)).ravel()
+        
+    def denormalize_targets(self, normalized_targets: np.ndarray) -> np.ndarray:
+        """Convert normalized targets back to original scale."""
+        if self.normalization is None or self.target_scaler is None:
+            return normalized_targets
+            
+        return self.target_scaler.inverse_transform(normalized_targets.reshape(-1, 1)).ravel()
+
     def normalize_data(self, data: np.ndarray) -> np.ndarray:
         """Apply normalization to data."""
         if self.normalization is None or self.scalers is None:
@@ -81,7 +105,9 @@ class TimeSeriesPreprocessor:
         for i in range(n_samples):
             X[i] = normalized_data[i:i + self.sequence_length]
             # Sum across all merchants to get total consumption
-            y[i] = np.sum(data[i + self.sequence_length])  # Use original data for target
+            raw_target = np.sum(data[i + self.sequence_length])
+            # Normalize the target value
+            y[i] = self.normalize_targets(np.array([raw_target]))[0]
             
         return X, y
 

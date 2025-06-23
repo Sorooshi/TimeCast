@@ -13,6 +13,7 @@ from utils.workflow_manager import (
     run_apply_mode, run_report_mode, get_mode_description
 )
 from utils.data_utils import get_data_path, load_and_validate_data, prepare_data_loaders
+from utils.data_preprocessing import prepare_data_for_model
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -57,6 +58,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument('--val_ratio', type=float, default=0.1,
                       help='Proportion of data to use for validation (default: 0.1)')
     
+    parser.add_argument('--normalization', type=str, default='minmax',
+                      choices=['minmax', 'standard', 'none'],
+                      help='Normalization method: minmax (0-1), standard (z-score), or none (default: minmax)')
+    
     return parser
 
 
@@ -92,14 +97,14 @@ def main():
         data_path = get_data_path(args.data_name, args.data_path)
         data, dates = load_and_validate_data(data_path)
         
-        # Prepare data loaders with custom split ratios
-        from utils.data_preprocessing import prepare_data_for_model
+        # Prepare data
         train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
             data=data,
-            dates=dates, 
+            dates=dates,
             sequence_length=args.sequence_length,
             train_ratio=args.train_ratio,
-            val_ratio=args.val_ratio
+            val_ratio=args.val_ratio,
+            normalization=args.normalization if args.normalization != 'none' else None
         )
         
         # Execute the appropriate workflow based on mode

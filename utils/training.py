@@ -53,7 +53,8 @@ class TimeSeriesTrainer:
     def evaluate(
         self,
         data_loader: torch.utils.data.DataLoader,
-        criterion: torch.nn.Module
+        criterion: torch.nn.Module,
+        preprocessor=None
     ) -> Tuple[float, np.ndarray, np.ndarray, Dict[str, float]]:
         """
         Evaluate the model on the given data loader.
@@ -82,9 +83,18 @@ class TimeSeriesTrainer:
         predictions = np.concatenate(predictions)
         targets = np.concatenate(targets)
         
-        # Calculate additional metrics
-        r2 = r2_score(targets, predictions)
-        mape = calculate_mape(targets, predictions)
+        # Denormalize for meaningful metrics if preprocessor available
+        if preprocessor is not None:
+            predictions_denorm = preprocessor.denormalize_targets(predictions)
+            targets_denorm = preprocessor.denormalize_targets(targets)
+            
+            # Calculate metrics on denormalized values
+            r2 = r2_score(targets_denorm, predictions_denorm)
+            mape = calculate_mape(targets_denorm, predictions_denorm)
+        else:
+            # Fallback to normalized scale
+            r2 = r2_score(targets, predictions)
+            mape = calculate_mape(targets, predictions)
         
         metrics = {
             'r2_score': r2,
