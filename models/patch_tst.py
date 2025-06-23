@@ -13,7 +13,6 @@ import math
 from typing import Dict, Any, Tuple, Optional
 from .base_model import BaseTimeSeriesModel
 
-assert False, "This model is not completed yet."
 
 class PatchEmbedding(nn.Module):
     def __init__(
@@ -42,7 +41,7 @@ class PatchEmbedding(nn.Module):
         """
         # Reshape into patches
         batch_size, seq_len, _ = x.size()
-        num_patches = seq_len // self.patch_len
+        num_patches = seq_len // self.patch_len # + 2
         
         # Ensure sequence length is divisible by patch_len
         if seq_len % self.patch_len != 0:

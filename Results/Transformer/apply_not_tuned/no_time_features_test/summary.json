@@ -1,0 +1,37 @@
+{
+    "experiment_description": "no_time_features_test",
+    "metrics": {
+        "val_loss": "25453.1215",
+        "val_r2": "-6.1987",
+        "val_mape": "96.0103",
+        "test_loss": "32402.9453",
+        "test_r2": "-3.3852",
+        "test_mape": "96.1590"
+    },
+    "hyperparameters": {
+        "d_model": 64,
+        "nhead": 4,
+        "num_encoder_layers": 3,
+        "num_decoder_layers": 3,
+        "dim_feedforward": 256,
+        "dropout": 0.1,
+        "learning_rate": 0.0001,
+        "input_size": 9,
+        "sequence_length": 10,
+        "experiment_description": "no_time_features_test"
+    },
+    "files": {
+        "history": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/History/Transformer/apply_not_tuned/no_time_features_test/training_history.csv",
+        "predictions": {
+            "val": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Predictions/Transformer/apply_not_tuned/no_time_features_test/val_predictions.csv",
+            "test": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Predictions/Transformer/apply_not_tuned/no_time_features_test/test_predictions.csv"
+        },
+        "metrics": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Metrics/Transformer/apply_not_tuned/no_time_features_test/metrics.json",
+        "hyperparameters": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Hyperparameters/Transformer/no_time_features_test/apply_not_tuned_parameters.json",
+        "plots": {
+            "loss": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Plots/Transformer/apply_not_tuned/no_time_features_test/loss_plot.png",
+            "r2": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Plots/Transformer/apply_not_tuned/no_time_features_test/r2_plot.png",
+            "mape": "/Users/sorooshshalileh/Programmes/Time_Series_Forecasting/Plots/Transformer/apply_not_tuned/no_time_features_test/mape_plot.png"
+        }
+    }
+}

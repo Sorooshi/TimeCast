@@ -1,0 +1,20 @@
+2025-06-20 20:11:11,095 - INFO - Starting hyperparameter tuning for LSTM
+2025-06-20 20:11:11,095 - INFO - Tuning logs will be saved to: Logs/LSTM/tuning_log_20250620_201111.txt
+2025-06-20 20:11:11,112 - INFO - Starting hyperparameter tuning with 2 trials
+2025-06-20 20:11:11,112 - INFO - Training parameters: epochs=2, patience=25
+2025-06-20 20:11:11,112 - INFO - Data info: input_size=5, sequence_length=5
+2025-06-20 20:11:11,974 - INFO - Trial 0 finished with value: 19.8177
+2025-06-20 20:11:11,974 - INFO - Trial 0 parameters: {'hidden_size': 48, 'num_layers': 4, 'dropout': 0.3152415660908005, 'learning_rate': 0.004835778421157559}
+2025-06-20 20:11:12,084 - INFO - Trial 1 finished with value: 8.0330
+2025-06-20 20:11:12,084 - INFO - Trial 1 parameters: {'hidden_size': 193, 'num_layers': 2, 'dropout': 0.2916986751609268, 'learning_rate': 0.0002674182407101677}
+2025-06-20 20:11:12,196 - INFO - Hyperparameter tuning completed
+2025-06-20 20:11:12,196 - INFO - Best validation loss: 8.0207
+2025-06-20 20:11:12,196 - INFO - Best validation R² score: -0.2186
+2025-06-20 20:11:12,196 - INFO - Best validation MAPE: 92.50%
+2025-06-20 20:11:12,196 - INFO - Best parameters: {'input_size': 5, 'hidden_size': 193, 'num_layers': 2, 'dropout': 0.2916986751609268, 'learning_rate': 0.0002674182407101677}
+2025-06-20 20:11:12,196 - INFO - Training final model with best parameters
+2025-06-20 20:11:12,326 - INFO - Final model training completed
+2025-06-20 20:11:12,326 - INFO - Final test loss: 714.9177
+2025-06-20 20:11:12,326 - INFO - Final test R² score: -5.1798
+2025-06-20 20:11:12,326 - INFO - Final test MAPE: 99.26%
+2025-06-20 20:11:13,032 - INFO - Results saved for experiment: test_lstm_tune_fixed

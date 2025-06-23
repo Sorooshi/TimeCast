@@ -1,0 +1,81 @@
+{
+  "summary": {
+    "total_tests": 11,
+    "passed": 10,
+    "failed": 1,
+    "warnings": 0,
+    "success_rate": 90.9090909090909,
+    "duration": "0:00:04.415070",
+    "timestamp": "2025-06-22T18:43:46.811626",
+    "compatibility_status": "ISSUES_FOUND"
+  },
+  "detailed_results": [
+    {
+      "test": "X Dimensions",
+      "status": "PASS",
+      "message": "LaTeX \ud835\udcbd_t \u2208 \u211d^{(k+1)\u00d7N} = (90, 10, 5) \u2713",
+      "timestamp": "2025-06-22T18:43:43.304461"
+    },
+    {
+      "test": "y Dimensions",
+      "status": "PASS",
+      "message": "Target y_t \u2208 \u211d = (90, 1) \u2713",
+      "timestamp": "2025-06-22T18:43:43.304487"
+    },
+    {
+      "test": "Target Calculation",
+      "status": "PASS",
+      "message": "y_t = \u03a3 x_{m,t} correctly implemented",
+      "timestamp": "2025-06-22T18:43:43.304553"
+    },
+    {
+      "test": "Mathematical Consistency",
+      "status": "PASS",
+      "message": "Verified 10 target calculations",
+      "timestamp": "2025-06-22T18:43:43.304853"
+    },
+    {
+      "test": "Sequence Structure",
+      "status": "PASS",
+      "message": "Historical sequences \ud835\udcbd_t correctly constructed",
+      "timestamp": "2025-06-22T18:43:43.304905"
+    },
+    {
+      "test": "Merchant Aggregation",
+      "status": "PASS",
+      "message": "Created 30 time steps \u00d7 5 merchants",
+      "timestamp": "2025-06-22T18:43:43.329495"
+    },
+    {
+      "test": "Contextual Features",
+      "status": "PASS",
+      "message": "Added 10 contextual features",
+      "timestamp": "2025-06-22T18:43:43.335100"
+    },
+    {
+      "test": "Model Compatibility",
+      "status": "PASS",
+      "message": "Preprocessed data compatible with TimeSeriesPreprocessor",
+      "timestamp": "2025-06-22T18:43:43.355032"
+    },
+    {
+      "test": "LaTeX Mapping",
+      "status": "PASS",
+      "message": "N (merchants) = 5, Total features = 15",
+      "timestamp": "2025-06-22T18:43:43.355061"
+    },
+    {
+      "test": "Example Preprocessing",
+      "status": "PASS",
+      "message": "Created processed data: (30, 15)",
+      "timestamp": "2025-06-22T18:43:44.115252"
+    },
+    {
+      "test": "Main Pipeline Integration",
+      "status": "FAIL",
+      "message": "main.py failed with return code 1",
+      "timestamp": "2025-06-22T18:43:46.810960"
+    }
+  ],
+  "failed_tests": []
+}

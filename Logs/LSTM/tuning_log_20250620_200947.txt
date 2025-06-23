@@ -1,0 +1,5 @@
+2025-06-20 20:09:47,876 - INFO - Starting hyperparameter tuning for LSTM
+2025-06-20 20:09:47,876 - INFO - Tuning logs will be saved to: Logs/LSTM/tuning_log_20250620_200947.txt
+2025-06-20 20:09:47,889 - INFO - Starting hyperparameter tuning with 2 trials
+2025-06-20 20:09:47,889 - INFO - Training parameters: epochs=2, patience=25
+2025-06-20 20:09:47,889 - INFO - Data info: input_size=5, sequence_length=5
