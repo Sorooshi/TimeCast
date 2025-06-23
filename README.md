@@ -74,11 +74,16 @@ For merchant transaction data preprocessing (recommended starting point):
 # Step 1: Run the preprocessing example
 python example.py
 
-# Step 2: Train models on preprocessed data
+# Step 2: Train models on preprocessed data with all arguments
 python main.py --model Transformer \
                --data_name merchant_processed \
+               --data_path data/merchant_processed.csv \
                --mode apply_not_tuned \
-               --experiment_description "merchant_baseline"
+               --experiment_description "merchant_baseline" \
+               --n_trials 100 \
+               --epochs 100 \
+               --patience 25 \
+               --sequence_length 5
 ```
 
 ### Command Line Interface
@@ -164,21 +169,24 @@ python main.py --model Transformer \
                --mode tune \
                --experiment_description "merchant_baseline" \
                --n_trials 50 \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # Step 3: Apply with tuned parameters
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode apply \
                --experiment_description "merchant_tuned" \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # Step 4: Compare with default parameters
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode apply_not_tuned \
                --experiment_description "merchant_default" \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # Step 5: View all results
 python main.py --model Transformer \
@@ -195,7 +203,8 @@ python main.py --model LSTM \
                --data_name my_data \
                --mode apply_not_tuned \
                --experiment_description "quick_test" \
-               --epochs 20
+               --epochs 20 \
+               --sequence_length 5
 ```
 
 ## 🧪 Testing and Validation

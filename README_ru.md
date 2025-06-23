@@ -74,11 +74,16 @@ pip install -r requirements.txt
 # Шаг 1: Запустите пример предобработки
 python example.py
 
-# Шаг 2: Обучите модели на предобработанных данных
+# Шаг 2: Обучите модели на предобработанных данных со всеми аргументами
 python main.py --model Transformer \
                --data_name merchant_processed \
+               --data_path data/merchant_processed.csv \
                --mode apply_not_tuned \
-               --experiment_description "merchant_baseline"
+               --experiment_description "merchant_baseline" \
+               --n_trials 100 \
+               --epochs 100 \
+               --patience 25 \
+               --sequence_length 5
 ```
 
 ### Интерфейс Командной Строки
@@ -164,21 +169,24 @@ python main.py --model Transformer \
                --mode tune \
                --experiment_description "merchant_baseline" \
                --n_trials 50 \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # Шаг 3: Применение с настроенными параметрами
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode apply \
                --experiment_description "merchant_tuned" \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # Шаг 4: Сравнение с параметрами по умолчанию
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode apply_not_tuned \
                --experiment_description "merchant_default" \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # Шаг 5: Просмотр всех результатов
 python main.py --model Transformer \
@@ -195,7 +203,8 @@ python main.py --model LSTM \
                --data_name my_data \
                --mode apply_not_tuned \
                --experiment_description "quick_test" \
-               --epochs 20
+               --epochs 20 \
+               --sequence_length 5
 ```
 
 ## 🧪 Тестирование и Валидация

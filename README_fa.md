@@ -74,11 +74,16 @@ pip install -r requirements.txt
 # مرحله 1: اجرای مثال پیش‌پردازش
 python example.py
 
-# مرحله 2: آموزش مدل‌ها روی داده‌های پیش‌پردازش‌شده
+# مرحله 2: آموزش مدل‌ها روی داده‌های پیش‌پردازش‌شده با همه آرگومان‌ها
 python main.py --model Transformer \
                --data_name merchant_processed \
+               --data_path data/merchant_processed.csv \
                --mode apply_not_tuned \
-               --experiment_description "merchant_baseline"
+               --experiment_description "merchant_baseline" \
+               --n_trials 100 \
+               --epochs 100 \
+               --patience 25 \
+               --sequence_length 5
 ```
 
 ### رابط خط فرمان
@@ -184,21 +189,24 @@ python main.py --model Transformer \
                --mode tune \
                --experiment_description "merchant_baseline" \
                --n_trials 50 \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # مرحله 3: اعمال با پارامترهای تنظیم‌شده
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode apply \
                --experiment_description "merchant_tuned" \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # مرحله 4: مقایسه با پارامترهای پیش‌فرض
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode apply_not_tuned \
                --experiment_description "merchant_default" \
-               --epochs 100
+               --epochs 100 \
+               --sequence_length 5
 
 # مرحله 5: مشاهده همه نتایج
 python main.py --model Transformer \
@@ -215,7 +223,8 @@ python main.py --model LSTM \
                --data_name my_data \
                --mode apply_not_tuned \
                --experiment_description "quick_test" \
-               --epochs 20
+               --epochs 20 \
+               --sequence_length 5
 ```
 
 ## 📁 ساختار پروژه
