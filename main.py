@@ -50,6 +50,13 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument('--experiment_description', type=str, default=None,
                       help='Description of the experiment. If not provided, defaults to sequence length')
     
+    # Data split arguments for small datasets
+    parser.add_argument('--train_ratio', type=float, default=0.7,
+                      help='Proportion of data to use for training (default: 0.7)')
+    
+    parser.add_argument('--val_ratio', type=float, default=0.1,
+                      help='Proportion of data to use for validation (default: 0.1)')
+    
     return parser
 
 
@@ -85,9 +92,14 @@ def main():
         data_path = get_data_path(args.data_name, args.data_path)
         data, dates = load_and_validate_data(data_path)
         
-        # Prepare data loaders
-        train_loader, val_loader, test_loader, input_size = prepare_data_loaders(
-            data, dates, args.sequence_length
+        # Prepare data loaders with custom split ratios
+        from utils.data_preprocessing import prepare_data_for_model
+        train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
+            data=data,
+            dates=dates, 
+            sequence_length=args.sequence_length,
+            train_ratio=args.train_ratio,
+            val_ratio=args.val_ratio
         )
         
         # Execute the appropriate workflow based on mode
