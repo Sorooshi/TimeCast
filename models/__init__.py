@@ -16,7 +16,8 @@ _MODEL_REGISTRY: Dict[str, str] = {
     'TCN': '.tcn',
     'Transformer': '.transformer',
     'HybridTCNLSTM': '.hybrid_tcn_lstm',
-    'MLP': '.mlp'
+    'MLP': '.mlp',
+    'ProphetModel': '.prophet'
 }
 
 def __getattr__(name: str):

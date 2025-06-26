@@ -83,12 +83,13 @@ class FeatureDimensionTester:
             # Create test data
             self.create_test_data(n_features, data_name)
             
-            # Build command
+            # Build command - using train mode with default parameters
             cmd = [
                 sys.executable, "main.py",
                 "--model", model,
                 "--data_name", data_name,
-                "--mode", "apply_not_tuned",
+                "--mode", "train",
+                "--train_tuned", "false",
                 "--epochs", "2",
                 "--experiment_description", f"test_{n_features}feat_{model.lower()}",
                 "--sequence_length", str(sequence_length)
@@ -98,12 +99,15 @@ class FeatureDimensionTester:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             
             if result.returncode == 0:
-                # Check if expected files were created
-                results_dir = self.base_dir / "Results" / model / "apply_not_tuned" / f"test_{n_features}feat_{model.lower()}"
-                if results_dir.exists():
+                # Check if expected weight files were created
+                weights_dir = self.base_dir / "Weights"
+                expected_weight_file = f"{model}_{data_name}_test_{n_features}feat_{model.lower()}_{sequence_length}_default_best.pth"
+                weight_file_path = weights_dir / expected_weight_file
+                
+                if weight_file_path.exists():
                     self.log_test(test_name, "PASS", f"Successfully processed {n_features} features")
                 else:
-                    self.log_test(test_name, "WARN", f"Completed but missing results directory")
+                    self.log_test(test_name, "WARN", f"Completed but missing expected weight file: {expected_weight_file}")
             else:
                 error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
                 self.log_test(test_name, "FAIL", error_msg[:100] + "..." if len(error_msg) > 100 else error_msg)
@@ -132,12 +136,13 @@ class FeatureDimensionTester:
                 # Create test data
                 self.create_test_data(n_features, data_name)
                 
-                # Build command
+                # Build command - using train mode with default parameters
                 cmd = [
                     sys.executable, "main.py",
                     "--model", model,
                     "--data_name", data_name,
-                    "--mode", "apply_not_tuned",
+                    "--mode", "train",
+                    "--train_tuned", "false",
                     "--epochs", "2",
                     "--experiment_description", f"test_seq{seq_len}_{model.lower()}",
                     "--sequence_length", str(seq_len)

@@ -12,6 +12,37 @@ from pathlib import Path
 from typing import Dict, Any
 
 
+def create_unique_specifier(
+    model_name: str,
+    data_name: str,
+    sequence_length: int,
+    experiment_description: str = None
+) -> str:
+    """
+    Create a unique specifier for experiments.
+    
+    Args:
+        model_name: Name of the model
+        data_name: Name of the dataset
+        sequence_length: Sequence length
+        experiment_description: Custom experiment description
+        
+    Returns:
+        Unique specifier string
+    """
+    
+    if experiment_description is None:
+        exp_desc = f"No_Description"
+    else:
+        exp_desc = experiment_description
+    
+    # Create unique specifier
+    specifier = f"{model_name}_{data_name}_{exp_desc}_{sequence_length}"
+    
+    # Replace spaces and special characters with underscores for safe file/directory names
+    return "".join(c if c.isalnum() or c in "._-" else "_" for c in specifier)
+
+
 def create_directory_safely(directory: Path) -> bool:
     """
     Safely create a directory with proper error handling and validation.
@@ -92,7 +123,8 @@ def create_experiment_directories(
         'metrics': base_dir / "Metrics" / model_name / mode / exp_subdir,
         'history': base_dir / "History" / model_name / mode / exp_subdir,
         'plots': base_dir / "Plots" / model_name / mode / exp_subdir,
-        'logs': base_dir / "Logs" / model_name
+        'logs': base_dir / "Logs" / model_name / mode / exp_subdir,
+        'weights': base_dir / "Weights" / model_name / mode / exp_subdir
     }
     
     # Create all directories with robust error handling

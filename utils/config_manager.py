@@ -12,12 +12,16 @@ from pathlib import Path
 from typing import Dict, Any
 
 
-def load_hyperparameters(model_name: str, model_class, use_tuned: bool = True) -> Dict[str, Any]:
+def load_hyperparameters(
+    unique_specifier: str, 
+    model_class, 
+    use_tuned: bool = True
+) -> Dict[str, Any]:
     """
-    Load hyperparameters for the model.
+    Load hyperparameters for the model using unique specifier.
     
     Args:
-        model_name: Name of the model
+        unique_specifier: Unique identifier for the experiment
         model_class: The model class to get default parameters from
         use_tuned: Whether to use tuned parameters if available
         
@@ -25,24 +29,103 @@ def load_hyperparameters(model_name: str, model_class, use_tuned: bool = True) -
         Dictionary of hyperparameters
     """
     if use_tuned:
-        hyperparams_dir = Path("Hyperparameters") / model_name
-        tuned_params_path = hyperparams_dir / "tuned_parameters.json"
+        hyperparams_dir = Path("Hyperparameters")
+        tuned_params_path = hyperparams_dir / f"{unique_specifier}_tuned.json"
         
         if tuned_params_path.exists():
             try:
                 with open(tuned_params_path, "r") as f:
                     params = json.load(f)
-                print("\nUsing previously tuned hyperparameters")
+                print(f"\nUsing previously tuned hyperparameters for {unique_specifier}")
                 return params
             except (json.JSONDecodeError, FileNotFoundError) as e:
                 print(f"\nError loading tuned parameters: {e}")
                 print("Falling back to default parameters")
         else:
-            print("\nNo tuned parameters found, using default parameters")
+            print(f"\nNo tuned parameters found for {unique_specifier}, using default parameters")
     else:
-        print("\nUsing default parameters (not tuned)")
+        print(f"\nUsing default parameters for {unique_specifier} (not tuned)")
     
     return model_class.get_default_parameters()
+
+
+def save_hyperparameters_with_specifier(
+    params: Dict[str, Any], 
+    unique_specifier: str, 
+    mode: str
+) -> None:
+    """
+    Save hyperparameters using unique specifier.
+    
+    Args:
+        params: Parameters to save
+        unique_specifier: Unique identifier for the experiment
+        mode: Mode (tune, train, apply_not_tuned, predict)
+    """
+    try:
+        hyperparams_dir = Path("Hyperparameters")
+        hyperparams_dir.mkdir(parents=True, exist_ok=True)
+        
+        if mode == 'tune':
+            # Save as tuned parameters for this specifier
+            file_path = hyperparams_dir / f"{unique_specifier}_tuned.json"
+        else:
+            # Save as mode-specific parameters
+            file_path = hyperparams_dir / f"{unique_specifier}_{mode}.json"
+        
+        with open(file_path, "w") as f:
+            json.dump(params, f, indent=4)
+        
+        print(f"Saved hyperparameters to: {file_path}")
+    except Exception as e:
+        print(f"Error saving hyperparameters: {e}")
+
+
+def load_model_weights(unique_specifier: str, use_tuned: bool = True) -> Path:
+    """
+    Get the path to the model weights file.
+    
+    Args:
+        unique_specifier: Unique identifier for the experiment
+        use_tuned: Whether to use tuned model weights
+        
+    Returns:
+        Path to the weights file
+    """
+    weights_dir = Path("Weights")
+    
+    if use_tuned:
+        weights_path = weights_dir / f"{unique_specifier}_tuned_best.pth"
+    else:
+        weights_path = weights_dir / f"{unique_specifier}_default_best.pth"
+    
+    return weights_path
+
+
+def save_model_weights(model, unique_specifier: str, use_tuned: bool = True) -> None:
+    """
+    Save model weights using unique specifier.
+    
+    Args:
+        model: The trained model
+        unique_specifier: Unique identifier for the experiment
+        use_tuned: Whether these are tuned model weights
+    """
+    import torch
+    
+    weights_dir = Path("Weights")
+    weights_dir.mkdir(parents=True, exist_ok=True)
+    
+    if use_tuned:
+        weights_path = weights_dir / f"{unique_specifier}_tuned_best.pth"
+    else:
+        weights_path = weights_dir / f"{unique_specifier}_default_best.pth"
+    
+    try:
+        torch.save(model.state_dict(), weights_path)
+        print(f"Saved model weights to: {weights_path}")
+    except Exception as e:
+        print(f"Error saving model weights: {e}")
 
 
 def filter_model_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,6 +164,7 @@ def filter_model_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
             if k not in ['sequence_length', 'experiment_description']}
 
 
+# Legacy function for backwards compatibility
 def save_hyperparameters(
     params: Dict[str, Any], 
     hyperparams_dir: Path, 
@@ -88,7 +172,7 @@ def save_hyperparameters(
     is_tune_mode: bool = False
 ) -> None:
     """
-    Save hyperparameters to files.
+    Legacy save hyperparameters function - kept for backwards compatibility.
     
     Args:
         params: Parameters to save

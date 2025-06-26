@@ -10,10 +10,12 @@ Year: 2025
 import argparse
 from utils.workflow_manager import (
     load_model_class, setup_logging, run_tune_mode, 
-    run_apply_mode, run_report_mode, get_mode_description
+    run_train_mode, run_predict_mode, 
+    run_report_mode, get_mode_description
 )
 from utils.data_utils import get_data_path, load_and_validate_data, prepare_data_loaders
 from utils.data_preprocessing import prepare_data_for_model
+from utils.file_utils import create_unique_specifier
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -33,8 +35,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
                       'will look for {data_name}.csv in data/ directory')
     
     parser.add_argument('--mode', type=str, 
-                      choices=['tune', 'apply', 'apply_not_tuned', 'report'],
-                      default='apply', help='Mode to run the model in')
+                      choices=['tune', 'train', 'predict', 'report'],
+                      default='train', help='Mode to run the model in')
     
     parser.add_argument('--n_trials', type=int, default=100,
                       help='Number of trials for hyperparameter tuning')
@@ -45,11 +47,25 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument('--patience', type=int, default=25,
                       help='Patience for early stopping')
     
-    parser.add_argument('--sequence_length', type=int, default=10,
+    parser.add_argument('--sequence_length', type=int, default=5,
                       help='Length of input sequences')
     
     parser.add_argument('--experiment_description', type=str, default=None,
                       help='Description of the experiment. If not provided, defaults to sequence length')
+    
+    # K-fold cross validation arguments
+    parser.add_argument('--k_folds', type=int, default=5,
+                      help='Number of folds for K-fold cross validation (default: 5)')
+    
+    # Training mode arguments
+    parser.add_argument('--train_tuned', type=str, default='true',
+                      choices=['true', 'false', '1', '0'],
+                      help='Whether to train with tuned parameters (true/1) or default parameters (false/0)')
+    
+    # Prediction mode arguments
+    parser.add_argument('--predict_tuned', type=str, default='true',
+                      choices=['true', 'false', '1', '0'],
+                      help='Whether to use tuned model (true/1) or default model (false/0) for prediction')
     
     # Data split arguments for small datasets
     parser.add_argument('--train_ratio', type=float, default=0.7,
@@ -72,6 +88,16 @@ def print_mode_info(mode: str):
     print("-" * 50)
 
 
+def parse_train_tuned(train_tuned_str: str) -> bool:
+    """Parse the train_tuned argument to boolean."""
+    return train_tuned_str.lower() in ['true', '1']
+
+
+def parse_predict_tuned(predict_tuned_str: str) -> bool:
+    """Parse the predict_tuned argument to boolean."""
+    return predict_tuned_str.lower() in ['true', '1']
+
+
 def main():
     """Main entry point for the application."""
     parser = create_argument_parser()
@@ -89,6 +115,15 @@ def main():
         # Load model class
         model_class, model_name = load_model_class(args.model)
         print(f"Loaded model: {model_name}")
+        
+        # Create unique specifier
+        unique_specifier = create_unique_specifier(
+            model_name=model_name,
+            data_name=args.data_name,
+            sequence_length=args.sequence_length,
+            experiment_description=args.experiment_description
+        )
+        print(f"Unique specifier: {unique_specifier}")
         
         # Set up logging
         setup_logging(model_name, args.mode)
@@ -109,19 +144,23 @@ def main():
         
         # Execute the appropriate workflow based on mode
         if args.mode == 'tune':
-            run_tune_mode(model_class, model_name, train_loader, val_loader, 
-                         test_loader, input_size, args)
+            run_tune_mode(model_class, model_name, unique_specifier, train_loader, 
+                         val_loader, test_loader, input_size, args)
         
-        elif args.mode == 'apply':
-            run_apply_mode(model_class, model_name, train_loader, val_loader, 
-                          test_loader, input_size, args, use_tuned=True)
+        elif args.mode == 'train':
+            train_tuned = parse_train_tuned(args.train_tuned)
+            run_train_mode(model_class, model_name, unique_specifier, data, dates, 
+                          train_loader, val_loader, test_loader, input_size, args, train_tuned)
         
-        elif args.mode == 'apply_not_tuned':
-            run_apply_mode(model_class, model_name, train_loader, val_loader, 
-                          test_loader, input_size, args, use_tuned=False)
+        elif args.mode == 'predict':
+            predict_tuned = parse_predict_tuned(args.predict_tuned)
+            run_predict_mode(model_class, model_name, unique_specifier, 
+                           train_loader, val_loader, test_loader, input_size, 
+                           args, predict_tuned)
         
         print(f"\nExperiment completed successfully!")
         print(f"Results saved for model: {model_name}")
+        print(f"Unique specifier: {unique_specifier}")
         
     except Exception as e:
         print(f"\nError during execution: {str(e)}")

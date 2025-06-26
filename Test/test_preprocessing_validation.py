@@ -263,7 +263,8 @@ class PreprocessingValidator:
                     sys.executable, str(main_py_path),
                     "--model", "LSTM",
                     "--data_name", "merchant_processed",
-                    "--mode", "apply_not_tuned",
+                    "--mode", "train",
+                    "--train_tuned", "false",  # Use default parameters for quick testing
                     "--epochs", "1",  # Reduced for faster testing
                     "--experiment_description", "preprocessing_validation_test",
                     "--sequence_length", "2"  # Reduced to ensure enough validation samples

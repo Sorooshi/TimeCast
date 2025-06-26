@@ -9,7 +9,7 @@ A comprehensive PyTorch-based package for time series forecasting that implement
 - **Multiple State-of-the-Art Models**: LSTM, TCN, Transformer, HybridTCNLSTM, MLP
 - **Automated Hyperparameter Tuning**: Using Optuna for optimal parameter search
 - **Experiment Management**: Organized experiment tracking with custom descriptions
-- **4 Training Modes**: Comprehensive workflow for different use cases
+- **3 Training Modes**: Streamlined workflow for different use cases
 - **Robust Data Processing**: Clean, efficient preprocessing without artificial time features
 - **Merchant Data Preprocessing**: Complete pipeline for transaction-to-timeseries conversion
 - **Mathematical Validation**: LaTeX formulation compatibility verified
@@ -78,7 +78,8 @@ python example.py
 python main.py --model Transformer \
                --data_name merchant_processed \
                --data_path data/merchant_processed.csv \
-               --mode apply_not_tuned \
+               --mode train \
+               --train_tuned false \
                --experiment_description "merchant_baseline" \
                --n_trials 100 \
                --epochs 100 \
@@ -88,7 +89,7 @@ python main.py --model Transformer \
 
 ### Command Line Interface
 
-The package provides a comprehensive CLI with 4 distinct modes:
+The package provides a comprehensive CLI with 3 distinct modes:
 
 ```bash
 python main.py --model <MODEL_NAME> \
@@ -102,9 +103,9 @@ python main.py --model <MODEL_NAME> \
 
 | Mode | Description | When to Use |
 |------|-------------|-------------|
-| `tune` | Hyperparameter tuning + training with best params | First time with new data/model |
-| `apply` | Training with previously tuned params (or defaults) | Using existing tuned parameters |
-| `apply_not_tuned` | Training with default parameters only | Baseline comparison or quick testing |
+| `tune` | Hyperparameter optimization only | First time with new data/model |
+| `train` | Training with tuned (`--train_tuned true`) or default (`--train_tuned false`) parameters | Main training mode |
+| `predict` | Load trained model and make predictions (`--predict_tuned true/false`) | Making predictions |
 | `report` | Display saved results from previous runs | Analysis and comparison |
 
 ### 📋 Arguments
@@ -115,12 +116,36 @@ python main.py --model <MODEL_NAME> \
 
 #### Optional Arguments
 - `--data_path`: Full path to data file (default: data/{data_name}.csv)
-- `--mode`: Training mode (default: apply)
+- `--mode`: Training mode (default: train)
 - `--experiment_description`: Custom experiment description (default: seq_len_{sequence_length})
+- `--train_tuned`: Whether to use tuned parameters for training (true/false, default: true)
+- `--predict_tuned`: Whether to use tuned model for prediction (true/false, default: true)
 - `--n_trials`: Hyperparameter tuning trials (default: 100)
 - `--epochs`: Training epochs (default: 100)
 - `--patience`: Early stopping patience (default: 25)
 - `--sequence_length`: Input sequence length (default: 10)
+- `--k_folds`: Number of folds for K-fold cross validation (default: 5)
+
+### 🔧 Important: Data Path Usage
+
+**Common Mistake:** Don't point `--data_path` to a directory!
+
+```bash
+# ❌ WRONG - This will fail
+python main.py --model LSTM --data_name my_data --data_path data/
+
+# ✅ CORRECT - Specify the complete file path
+python main.py --model LSTM --data_name my_data --data_path data/my_data.csv
+
+# ✅ RECOMMENDED - Let the system auto-construct the path
+python main.py --model LSTM --data_name my_data
+# This automatically uses: data/my_data.csv
+```
+
+**Key Points:**
+- `--data_path` expects a **file path**, not a directory
+- If omitted, the system constructs: `data/{data_name}.csv`
+- Always include the `.csv` extension when specifying `--data_path`
 
 ## 🏪 Merchant Data Preprocessing
 
@@ -172,10 +197,11 @@ python main.py --model Transformer \
                --epochs 100 \
                --sequence_length 5
 
-# Step 3: Apply with tuned parameters
+# Step 3: Train with tuned parameters (K-fold CV)
 python main.py --model Transformer \
                --data_name merchant_processed \
-               --mode apply \
+               --mode train \
+               --train_tuned true \
                --experiment_description "merchant_tuned" \
                --epochs 100 \
                --sequence_length 5
@@ -183,12 +209,21 @@ python main.py --model Transformer \
 # Step 4: Compare with default parameters
 python main.py --model Transformer \
                --data_name merchant_processed \
-               --mode apply_not_tuned \
+               --mode train \
+               --train_tuned false \
                --experiment_description "merchant_default" \
                --epochs 100 \
                --sequence_length 5
 
-# Step 5: View all results
+# Step 5: Make predictions with tuned model
+python main.py --model Transformer \
+               --data_name merchant_processed \
+               --mode predict \
+               --predict_tuned true \
+               --experiment_description "merchant_tuned" \
+               --sequence_length 5
+
+# Step 6: View all results
 python main.py --model Transformer \
                --data_name merchant_processed \
                --mode report \
@@ -201,7 +236,8 @@ python main.py --model Transformer \
 # Quick test with default parameters
 python main.py --model LSTM \
                --data_name my_data \
-               --mode apply_not_tuned \
+               --mode train \
+               --train_tuned false \
                --experiment_description "quick_test" \
                --epochs 20 \
                --sequence_length 5
@@ -382,7 +418,7 @@ Logs/Transformer/
 
 1. **Start with example.py**: For merchant data, use the preprocessing pipeline
 2. **Use tuning mode**: Use `--mode tune` for new datasets
-3. **Use apply_not_tuned**: For quick baselines and comparisons  
+3. **Use train with --train_tuned false**: For quick baselines and comparisons  
 4. **Experiment descriptions**: Use meaningful names for organization
 5. **Logging**: Check log files for detailed training information
 6. **Cross-validation**: Results are automatically validated on separate test sets

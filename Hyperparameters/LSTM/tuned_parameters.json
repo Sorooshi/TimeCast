@@ -1,9 +1,0 @@
-{
-    "input_size": 5,
-    "hidden_size": 240,
-    "num_layers": 2,
-    "dropout": 0.2870478132928058,
-    "learning_rate": 0.00021055204256980993,
-    "sequence_length": 5,
-    "experiment_description": "test_tune_lstm"
-}

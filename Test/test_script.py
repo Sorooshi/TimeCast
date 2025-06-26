@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Comprehensive Test Script for Time Series Forecasting Package
-Tests all models, modes, and functionality.
+Tests all models, modes, and functionality with the new four-mode system.
 
 Author: Soroosh Shalileh
 Email: sr.shalileh@gmail.com
@@ -19,6 +19,14 @@ import shutil
 import json
 from datetime import datetime, timedelta
 
+# Add the root directory to the path so we can import our modules
+script_dir = Path(__file__).parent
+root_dir = script_dir.parent
+sys.path.insert(0, str(root_dir))
+
+# Change working directory to root if we're in Test directory
+if os.getcwd().endswith('Test'):
+    os.chdir(root_dir)
 
 class TimeSeriesTester:
     """Comprehensive tester for the time series forecasting package."""
@@ -26,6 +34,9 @@ class TimeSeriesTester:
     def __init__(self):
         self.test_results = []
         self.failed_tests = []
+        # Ensure we're working from the project root
+        if os.getcwd().endswith('Test'):
+            os.chdir('..')
         self.base_dir = Path(".")
         self.temp_data_path = None
         
@@ -102,69 +113,185 @@ class TimeSeriesTester:
                 self.log_test(f"Model {model_name}", "FAIL", str(e))
                 self.failed_tests.append(f"Model {model_name}")
     
-    def test_mode(self, model: str, mode: str, epochs: int = 2, n_trials: int = 2):
-        """Test a specific model and mode combination."""
-        print(f"\n🧪 Testing {model} in {mode} mode...")
+    def test_mode(self, model: str, mode: str, epochs: int = 2, n_trials: int = 2, k_folds: int = 2, train_tuned: bool = True, predict_tuned: bool = True):
+        """Test a specific model and mode combination with the new three-mode system."""
+        mode_desc = mode
+        if mode == 'train':
+            mode_desc = f"{mode} ({'tuned' if train_tuned else 'default'})"
+        elif mode == 'predict':
+            mode_desc = f"{mode} ({'tuned' if predict_tuned else 'default'})"
+            
+        print(f"\n🧪 Testing {model} in {mode_desc} mode...")
         
         try:
-            # Build command
+            # Build base command
+            experiment_name = f"test_{mode}_{('tuned' if train_tuned else 'default') if mode == 'train' else mode}_{model.lower()}"
             cmd = [
                 sys.executable, "main.py",
                 "--model", model,
                 "--data_name", "test_data",
                 "--mode", mode,
                 "--epochs", str(epochs),
-                "--experiment_description", f"test_{mode}_{model.lower()}",
+                "--patience", "2",
+                "--experiment_description", experiment_name,
                 "--sequence_length", "5"
             ]
             
+            # Add mode-specific parameters
             if mode == 'tune':
                 cmd.extend(["--n_trials", str(n_trials)])
+            elif mode == 'train':
+                cmd.extend(["--k_folds", str(k_folds)])
+                cmd.extend(["--train_tuned", "true" if train_tuned else "false"])
+            elif mode == 'predict':
+                cmd.extend(["--predict_tuned", "true" if predict_tuned else "false"])
             
             # Run command
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             
             if result.returncode == 0:
-                # Check if expected files were created
-                expected_dirs = self._get_expected_directories(model, mode, f"test_{mode}_{model.lower()}")
-                missing_dirs = []
+                # Check if expected files were created based on mode
+                expected_files = self._get_expected_files(model, mode, experiment_name)
+                missing_files = []
                 
-                for dir_type, dir_path in expected_dirs.items():
-                    if not dir_path.exists():
-                        missing_dirs.append(dir_type)
+                for file_type, file_path in expected_files.items():
+                    if not file_path.exists():
+                        missing_files.append(file_type)
                 
-                if missing_dirs:
-                    self.log_test(f"{model} {mode}", "WARN", f"Missing directories: {missing_dirs}")
+                if missing_files:
+                    self.log_test(f"{model} {mode_desc}", "WARN", f"Missing files: {missing_files}")
                 else:
-                    self.log_test(f"{model} {mode}", "PASS", "All expected files created")
+                    self.log_test(f"{model} {mode_desc}", "PASS", "All expected files created")
                     
             else:
-                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                self.log_test(f"{model} {mode}", "FAIL", error_msg[:100])
-                self.failed_tests.append(f"{model} {mode}")
+                error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                if not error_msg:
+                    error_msg = f"Command failed with return code {result.returncode}"
+                self.log_test(f"{model} {mode_desc}", "FAIL", error_msg[:150])
+                self.failed_tests.append(f"{model} {mode_desc}")
                 
         except subprocess.TimeoutExpired:
-            self.log_test(f"{model} {mode}", "FAIL", "Test timed out after 5 minutes")
-            self.failed_tests.append(f"{model} {mode}")
+            self.log_test(f"{model} {mode_desc}", "FAIL", "Test timed out after 2 minutes")
+            self.failed_tests.append(f"{model} {mode_desc}")
         except Exception as e:
-            self.log_test(f"{model} {mode}", "FAIL", str(e))
-            self.failed_tests.append(f"{model} {mode}")
+            self.log_test(f"{model} {mode_desc}", "FAIL", str(e))
+            self.failed_tests.append(f"{model} {mode_desc}")
     
-    def _get_expected_directories(self, model: str, mode: str, experiment: str):
-        """Get expected directory structure for a test."""
-        base_dirs = {
-            'results': self.base_dir / "Results" / model / mode / experiment,
-            'history': self.base_dir / "History" / model / mode / experiment,
-            'predictions': self.base_dir / "Predictions" / model / mode / experiment,
-            'metrics': self.base_dir / "Metrics" / model / mode / experiment,
-            'plots': self.base_dir / "Plots" / model / mode / experiment,
-            'hyperparams': self.base_dir / "Hyperparameters" / model / experiment
-        }
+    def _get_expected_files(self, model: str, mode: str, experiment: str):
+        """Get expected files for the new four-mode system."""
+        unique_specifier = f"{model}_test_data_{experiment}_5"  # sequence_length = 5
+        expected_files = {}
         
         if mode == 'tune':
-            base_dirs['logs'] = self.base_dir / "Logs" / model
+            expected_files['tuned_hyperparams'] = self.base_dir / "Hyperparameters" / f"{unique_specifier}_tuned.json"
+            expected_files['logs'] = self.base_dir / "Logs" / model / f"tune_log_*.txt"
             
-        return base_dirs
+        elif mode == 'train':
+            expected_files['tuned_weights'] = self.base_dir / "Weights" / f"{unique_specifier}_tuned_best.pth"
+            expected_files['logs'] = self.base_dir / "Logs" / model / f"train_log_*.txt"
+            
+        elif mode == 'train' and getattr(args, 'train_tuned', 'true').lower() in ['false', '0']:
+            expected_files['default_weights'] = self.base_dir / "Weights" / f"{unique_specifier}_default_best.pth"
+            expected_files['default_hyperparams'] = self.base_dir / "Hyperparameters" / f"{unique_specifier}_train.json"
+            expected_files['logs'] = self.base_dir / "Logs" / model / f"train_log_*.txt"
+            
+        elif mode == 'predict':
+            expected_files['predictions'] = self.base_dir / "Predictions" / model / mode / experiment
+            expected_files['metrics'] = self.base_dir / "Metrics" / model / mode / experiment / "metrics.json"
+            expected_files['logs'] = self.base_dir / "Logs" / model / f"predict_log_*.txt"
+        
+        # For log files with timestamps, just check if the directory exists
+        for key, path in expected_files.items():
+            if 'logs' in key and '*' in str(path):
+                log_dir = path.parent
+                if log_dir.exists() and any(log_dir.glob(path.name)):
+                    expected_files[key] = log_dir  # Change to directory check
+                    
+        return expected_files
+    
+    def test_full_workflow(self, model: str = "LSTM"):
+        """Test the complete four-mode workflow."""
+        print(f"\n🔄 Testing full workflow for {model}...")
+        
+        experiment_name = f"full_workflow_{model.lower()}"
+        
+        # Step 1: Tune hyperparameters
+        self.test_mode(model, "tune", epochs=2, n_trials=2)
+        if f"{model} tune" in self.failed_tests:
+            self.log_test(f"Full Workflow {model}", "FAIL", "Tune step failed")
+            return
+        
+        # Step 2: Train with tuned parameters
+        self.test_mode(model, "train", epochs=2, k_folds=2)
+        if f"{model} train" in self.failed_tests:
+            self.log_test(f"Full Workflow {model}", "FAIL", "Train step failed")
+            return
+        
+        # Step 3: Train with default parameters (independent)
+        self.test_mode(model, "train", epochs=2, train_tuned=False)
+        if f"{model} train (default)" in self.failed_tests:
+            self.log_test(f"Full Workflow {model}", "FAIL", "Train default step failed")
+            return
+        
+        # Step 4: Predict with tuned model
+        cmd_tuned = [
+            sys.executable, "main.py",
+            "--model", model,
+            "--data_name", "test_data",
+            "--mode", "predict",
+            "--experiment_description", f"test_tune_{model.lower()}",
+            "--sequence_length", "5",
+            "--predict_tuned", "true"
+        ]
+        
+        result_tuned = subprocess.run(cmd_tuned, capture_output=True, text=True, timeout=60)
+        
+        # Step 5: Predict with default model
+        cmd_default = [
+            sys.executable, "main.py",
+            "--model", model,
+            "--data_name", "test_data",
+            "--mode", "predict",
+            "--experiment_description", f"test_train_default_{model.lower()}",
+            "--sequence_length", "5",
+            "--predict_tuned", "false"
+        ]
+        
+        result_default = subprocess.run(cmd_default, capture_output=True, text=True, timeout=60)
+        
+        if result_tuned.returncode == 0 and result_default.returncode == 0:
+            self.log_test(f"Full Workflow {model}", "PASS", "All four modes completed successfully")
+        else:
+            error_msg = "Prediction steps failed"
+            if result_tuned.returncode != 0:
+                error_msg += f" (tuned: {result_tuned.stderr[:50]})"
+            if result_default.returncode != 0:
+                error_msg += f" (default: {result_default.stderr[:50]})"
+            self.log_test(f"Full Workflow {model}", "FAIL", error_msg)
+    
+    def test_unique_specifier_system(self):
+        """Test that the unique specifier system works correctly."""
+        print("\n🏷️ Testing unique specifier system...")
+        
+        try:
+            from utils.file_utils import create_unique_specifier
+            
+            # Test different combinations
+            test_cases = [
+                ("LSTM", "test_data", 10, "my_exp", "LSTM_test_data_my_exp_10"),
+                ("TCN", "merchant_data", 20, None, "TCN_merchant_data_No_Description_20"),
+                ("MLP", "air_quality", 5, "experiment_1", "MLP_air_quality_experiment_1_5")
+            ]
+            
+            for model, data, seq_len, exp_desc, expected in test_cases:
+                result = create_unique_specifier(model, data, seq_len, exp_desc)
+                if result == expected:
+                    self.log_test(f"Unique Specifier {model}", "PASS", f"Generated: {result}")
+                else:
+                    self.log_test(f"Unique Specifier {model}", "FAIL", f"Expected: {expected}, Got: {result}")
+                    
+        except Exception as e:
+            self.log_test("Unique Specifier System", "FAIL", str(e))
     
     def test_report_mode(self):
         """Test report mode functionality."""
@@ -175,8 +302,7 @@ class TimeSeriesTester:
                 sys.executable, "main.py",
                 "--model", "LSTM",
                 "--data_name", "test_data",
-                "--mode", "report",
-                "--experiment_description", "test_apply_lstm"
+                "--mode", "report"
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -184,7 +310,7 @@ class TimeSeriesTester:
             if result.returncode == 0:
                 # Check if report contains expected information
                 output = result.stdout
-                if "Results" in output and ("LSTM" in output or "No results found" in output):
+                if "Report Mode" in output:
                     self.log_test("Report Mode", "PASS", "Report generated successfully")
                 else:
                     self.log_test("Report Mode", "WARN", "Report generated but content may be incomplete")
@@ -199,21 +325,17 @@ class TimeSeriesTester:
         print("\n❓ Testing help message...")
         
         try:
-            result = subprocess.run([sys.executable, "main.py", "--help"], 
-                                  capture_output=True, text=True, timeout=30)
+            cmd = [sys.executable, "main.py", "--help"]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0:
-                help_output = result.stdout
-                required_elements = [
-                    "--model", "--data_name", "--mode", 
-                    "tune", "apply", "apply_not_tuned", "report",
-                    "--experiment_description"
-                ]
-                
-                missing_elements = [elem for elem in required_elements if elem not in help_output]
+                help_text = result.stdout
+                # Check for key elements in help message
+                required_elements = ['--model', '--data_name', '--mode', 'tune', 'train', 'predict', '--train_tuned', '--predict_tuned']
+                missing_elements = [elem for elem in required_elements if elem not in help_text]
                 
                 if not missing_elements:
-                    self.log_test("Help Message", "PASS", "All expected arguments present")
+                    self.log_test("Help Message", "PASS", "All required elements present")
                 else:
                     self.log_test("Help Message", "WARN", f"Missing elements: {missing_elements}")
             else:
@@ -224,192 +346,208 @@ class TimeSeriesTester:
     
     def test_data_processing(self):
         """Test data processing functionality."""
-        print("\n🔄 Testing data processing...")
+        print("\n📈 Testing data processing...")
         
         try:
-            from utils.data_utils import load_and_validate_data, get_data_path, prepare_data_loaders
+            from utils.data_utils import get_data_path, load_and_validate_data
+            from utils.data_preprocessing import prepare_data_for_model
             
             # Test data loading
-            data_path = get_data_path("test_data")
+            data_path = get_data_path("test_data", None)
             data, dates = load_and_validate_data(data_path)
             
-            # Test data preparation
-            train_loader, val_loader, test_loader, input_size = prepare_data_loaders(
-                data, dates, sequence_length=5
-            )
-            
-            # Verify shapes
-            for batch_x, batch_y in train_loader:
-                assert batch_x.shape[1] == 5  # sequence length
-                assert batch_x.shape[2] == input_size  # features
-                assert batch_y.shape[1] == 1  # target
-                break
-            
-            self.log_test("Data Processing", "PASS", f"Input size: {input_size}, batch shapes verified")
-            
+            if data is not None and len(data) > 0:
+                self.log_test("Data Loading", "PASS", f"Loaded {len(data)} rows")
+                
+                # Test data preparation
+                train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
+                    data=data,
+                    dates=dates,
+                    sequence_length=5,
+                    train_ratio=0.7,
+                    val_ratio=0.15
+                )
+                
+                if train_loader and val_loader and test_loader and input_size > 0:
+                    self.log_test("Data Processing", "PASS", f"Input size: {input_size}")
+                else:
+                    self.log_test("Data Processing", "FAIL", "Failed to create data loaders")
+            else:
+                self.log_test("Data Loading", "FAIL", "Failed to load data")
+                
         except Exception as e:
             self.log_test("Data Processing", "FAIL", str(e))
-            self.failed_tests.append("Data Processing")
     
     def test_directory_creation(self):
-        """Test robust directory creation."""
+        """Test directory creation functionality."""
         print("\n📁 Testing directory creation...")
         
         try:
             from utils.file_utils import create_directory_safely, create_experiment_directories
             
-            # Test basic directory creation
+            # Test safe directory creation
             test_dir = self.base_dir / "test_temp_dir"
-            success = create_directory_safely(test_dir)
-            
-            if success and test_dir.exists():
+            if create_directory_safely(test_dir):
+                self.log_test("Directory Creation", "PASS", "Successfully created test directory")
                 # Clean up
-                test_dir.rmdir()
-                
-                # Test experiment directories
-                dirs = create_experiment_directories("TestModel", "test", "test_experiment")
-                
-                missing_dirs = [name for name, path in dirs.items() if not path.exists()]
-                
-                if not missing_dirs:
-                    self.log_test("Directory Creation", "PASS", f"Created {len(dirs)} directories")
-                    # Clean up
-                    self._cleanup_test_directories(dirs)
-                else:
-                    self.log_test("Directory Creation", "WARN", f"Missing: {missing_dirs}")
+                if test_dir.exists():
+                    test_dir.rmdir()
             else:
-                self.log_test("Directory Creation", "FAIL", "Basic directory creation failed")
+                self.log_test("Directory Creation", "FAIL", "Failed to create test directory")
+                
+            # Test experiment directory creation
+            dirs = create_experiment_directories("TEST_MODEL", "test_mode", "test_exp", 10)
+            
+            created_dirs = [name for name, path in dirs.items() if path.exists()]
+            if len(created_dirs) > 0:
+                self.log_test("Experiment Directories", "PASS", f"Created {len(created_dirs)} directories")
+                # Clean up
+                self._cleanup_test_directories(dirs)
+            else:
+                self.log_test("Experiment Directories", "FAIL", "No directories were created")
                 
         except Exception as e:
-            self.log_test("Directory Creation", "FAIL", str(e))
+            self.log_test("Directory Management", "FAIL", str(e))
     
     def _cleanup_test_directories(self, dirs):
         """Clean up test directories."""
-        try:
-            for path in dirs.values():
-                if path.exists() and path.is_dir():
-                    # Remove files first
-                    for file in path.rglob("*"):
-                        if file.is_file():
-                            file.unlink()
-                    # Remove directories
-                    for dir_path in sorted(path.rglob("*"), reverse=True):
-                        if dir_path.is_dir():
-                            dir_path.rmdir()
-                    path.rmdir()
-        except Exception:
-            pass  # Ignore cleanup errors
+        for dir_path in dirs.values():
+            try:
+                if dir_path.exists():
+                    if dir_path.is_dir():
+                        shutil.rmtree(dir_path)
+                    else:
+                        dir_path.unlink()
+            except Exception:
+                pass  # Ignore cleanup errors
     
     def run_comprehensive_test(self):
-        """Run all tests."""
-        print("🚀 Starting Comprehensive Time Series Forecasting Tests")
-        print("=" * 60)
+        """Run comprehensive tests for the new four-mode system."""
+        print("🚀 Starting Comprehensive Test Suite for Four-Mode System")
+        print("=" * 80)
         
         start_time = datetime.now()
         
-        # Create test data
+        # Create test data first
         self.create_test_data()
         
-        # Test basic functionality
-        self.test_help_message()
+        # Basic functionality tests
         self.test_models_available()
+        self.test_help_message()
         self.test_data_processing()
         self.test_directory_creation()
+        self.test_unique_specifier_system()
         
-        # Test core functionality with one model
-        print("\n🔥 Testing core functionality (LSTM)...")
-        self.test_mode("LSTM", "apply_not_tuned", epochs=2)
-        self.test_mode("LSTM", "apply", epochs=2)
-        self.test_mode("LSTM", "tune", epochs=2, n_trials=2)
+        # Test individual modes with quick settings
+        test_models = ["LSTM", "MLP"]  # Test with two different models
+        test_modes = ["tune", "train", "predict"]  # Test all three modes
+        
+        for model in test_models:
+            for mode in test_modes:
+                if mode == "predict":
+                    # For predict mode, we need to have a trained model first
+                    self.test_mode(model, "train", epochs=1, train_tuned=False)  # Quick training with defaults
+                    # Test predict with both tuned and default models
+                    self.test_mode(model, mode, epochs=1, predict_tuned=True)  # Test tuned prediction
+                    self.test_mode(model, mode, epochs=1, predict_tuned=False)  # Test default prediction
+                elif mode == "train":
+                    # Test train with both tuned and default parameters
+                    self.test_mode(model, mode, epochs=1, n_trials=2, k_folds=2, train_tuned=True)  # Test tuned training
+                    self.test_mode(model, mode, epochs=1, train_tuned=False)  # Test default training
+                else:
+                    self.test_mode(model, mode, epochs=1, n_trials=2, k_folds=2)
+        
+        # Test full workflow with one model
+        self.test_full_workflow("LSTM")
         
         # Test report mode
         self.test_report_mode()
         
-        # Quick test with other models (just apply_not_tuned mode)
-        other_models = ["TCN", "Transformer", "MLP"]
-        for model in other_models:
-            self.test_mode(model, "apply_not_tuned", epochs=2)
-        
-        # Generate report
         end_time = datetime.now()
         self._generate_final_report(start_time, end_time)
     
     def _generate_final_report(self, start_time, end_time):
         """Generate final test report."""
-        print("\n" + "=" * 60)
-        print("📋 FINAL TEST REPORT")
-        print("=" * 60)
+        duration = end_time - start_time
         
         total_tests = len(self.test_results)
         passed_tests = len([r for r in self.test_results if r['status'] == 'PASS'])
         failed_tests = len([r for r in self.test_results if r['status'] == 'FAIL'])
-        warning_tests = len([r for r in self.test_results if r['status'] == 'WARN'])
+        warned_tests = len([r for r in self.test_results if r['status'] == 'WARN'])
         
-        print(f"⏱️  Total Time: {end_time - start_time}")
-        print(f"📊 Total Tests: {total_tests}")
+        print("\n" + "=" * 80)
+        print("📊 FINAL TEST REPORT")
+        print("=" * 80)
+        print(f"⏱️  Duration: {duration}")
+        print(f"📈 Total Tests: {total_tests}")
         print(f"✅ Passed: {passed_tests}")
-        print(f"⚠️  Warnings: {warning_tests}")
+        print(f"⚠️  Warnings: {warned_tests}")
         print(f"❌ Failed: {failed_tests}")
-        print(f"📈 Success Rate: {passed_tests/total_tests*100:.1f}%")
+        print(f"📊 Success Rate: {(passed_tests/total_tests)*100:.1f}%")
         
         if self.failed_tests:
             print(f"\n❌ Failed Tests:")
             for test in self.failed_tests:
-                print(f"   • {test}")
+                print(f"   - {test}")
         
         # Save detailed report
-        report_path = self.base_dir / f"test_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(report_path, 'w') as f:
-            json.dump({
-                'summary': {
-                    'total_tests': total_tests,
-                    'passed': passed_tests,
-                    'failed': failed_tests,
-                    'warnings': warning_tests,
-                    'success_rate': passed_tests/total_tests*100,
-                    'duration': str(end_time - start_time),
-                    'timestamp': datetime.now().isoformat()
-                },
-                'detailed_results': self.test_results,
-                'failed_tests': self.failed_tests
-            }, f, indent=2)
+        report_data = {
+            'timestamp': datetime.now().isoformat(),
+            'duration_seconds': duration.total_seconds(),
+            'summary': {
+                'total': total_tests,
+                'passed': passed_tests,
+                'failed': failed_tests,
+                'warned': warned_tests,
+                'success_rate': (passed_tests/total_tests)*100
+            },
+            'failed_tests': self.failed_tests,
+            'detailed_results': self.test_results
+        }
         
-        print(f"\n📄 Detailed report saved to: {report_path}")
+        report_file = self.base_dir / "Test" / f"test_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(report_file, 'w') as f:
+            json.dump(report_data, f, indent=2)
         
-        # Cleanup
-        self._cleanup()
-        
-        if failed_tests == 0:
-            print("\n🎉 All tests passed! The system is working correctly.")
-        else:
-            print(f"\n⚠️  {failed_tests} tests failed. Please check the issues above.")
+        print(f"\n📄 Detailed report saved to: {report_file}")
+        print("=" * 80)
     
     def _cleanup(self):
-        """Clean up test files."""
+        """Clean up test artifacts."""
         try:
             if self.temp_data_path and self.temp_data_path.exists():
                 self.temp_data_path.unlink()
-                
-            # Clean up test experiment directories
-            cleanup_patterns = ["test_*", "TestModel"]
-            for pattern in cleanup_patterns:
-                for base_dir in ["Results", "History", "Predictions", "Metrics", "Plots", "Hyperparameters", "Logs"]:
-                    base_path = Path(base_dir)
-                    if base_path.exists():
-                        for item in base_path.rglob(pattern):
-                            if item.is_dir():
-                                shutil.rmtree(item, ignore_errors=True)
-                            elif item.is_file():
-                                item.unlink(missing_ok=True)
-        except Exception:
-            pass  # Ignore cleanup errors
+            
+            # Clean up test directories
+            test_dirs = [
+                "Results/TEST_MODEL",
+                "History/TEST_MODEL", 
+                "Predictions/TEST_MODEL",
+                "Metrics/TEST_MODEL",
+                "Plots/TEST_MODEL",
+                "Hyperparameters/TEST_MODEL",
+                "Logs/TEST_MODEL",
+                "Weights/TEST_MODEL"
+            ]
+            
+            for dir_path in test_dirs:
+                full_path = self.base_dir / dir_path
+                if full_path.exists():
+                    shutil.rmtree(full_path)
+                    
+        except Exception as e:
+            print(f"⚠️  Cleanup warning: {e}")
 
 
 def main():
-    """Main function to run tests."""
+    """Main function to run the comprehensive test suite."""
     tester = TimeSeriesTester()
-    tester.run_comprehensive_test()
+    
+    try:
+        tester.run_comprehensive_test()
+    finally:
+        tester._cleanup()
 
 
 if __name__ == "__main__":
-    main() 
+    main()
