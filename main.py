@@ -67,6 +67,13 @@ def create_argument_parser() -> argparse.ArgumentParser:
                       choices=['true', 'false', '1', '0'],
                       help='Whether to use tuned model (true/1) or default model (false/0) for prediction')
     
+    # Report mode arguments
+    parser.add_argument('--report_type', type=str, default='all',
+                      choices=['all', 'models', 'performance', 'best', 'timeline', 'files'],
+                      help='Type of report to show: all (everything), models (available trained models), '
+                      'performance (comparison tables), best (best configurations), '
+                      'timeline (experiment timeline), files (file paths)')
+    
     # Data split arguments for small datasets
     parser.add_argument('--train_ratio', type=float, default=0.7,
                       help='Proportion of data to use for training (default: 0.7)')

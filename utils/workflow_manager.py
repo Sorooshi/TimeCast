@@ -11,6 +11,9 @@ import importlib
 import logging
 import torch
 import numpy as np
+import os
+import json
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Tuple
@@ -297,7 +300,7 @@ def run_train_mode(
             patience=args.patience,
             params=params
         )
-        
+    
         # Save default model weights
         save_model_weights(model, unique_specifier, use_tuned=False)
         
@@ -393,13 +396,437 @@ def run_report_mode(args) -> None:
     """
     Run report mode to show previous results.
     """
-    print("\nReport Mode - Previous Results:")
-    print("=" * 50)
+    print(f"\n📊 Report Mode - {args.report_type.upper()}")
+    print("=" * 70)
     
-    # This would need to be implemented based on your specific requirements
-    # For now, just show a placeholder
-    print("Report functionality to be implemented based on specific requirements.")
-    print("This would show previous training/tuning results for comparison.")
+    # Base paths
+    base_path = Path(".").resolve()
+    hyperparams_path = base_path / "Hyperparameters"
+    weights_path = base_path / "Weights"
+    results_path = base_path / "Results"
+    
+    if args.report_type in ['all', 'models']:
+        show_available_models(hyperparams_path, weights_path)
+    
+    if args.report_type in ['all', 'performance']:
+        show_performance_comparison(hyperparams_path, results_path)
+    
+    if args.report_type in ['all', 'best']:
+        show_best_configurations(hyperparams_path, results_path)
+    
+    if args.report_type in ['all', 'timeline']:
+        show_experiment_timeline(hyperparams_path, weights_path)
+    
+    if args.report_type in ['all', 'files']:
+        show_file_paths(hyperparams_path, weights_path, results_path)
+
+
+def show_available_models(hyperparams_path: Path, weights_path: Path) -> None:
+    """Show available trained models."""
+    print("\n🤖 AVAILABLE TRAINED MODELS")
+    print("-" * 70)
+    
+    if not hyperparams_path.exists() or not weights_path.exists():
+        print("❌ No trained models found. Run training first.")
+        return
+    
+    # Collect model information
+    models_info = {}
+    
+    # Parse hyperparameter files
+    if hyperparams_path.exists():
+        for hp_file in hyperparams_path.glob("*.json"):
+            try:
+                parts = hp_file.stem.split('_')
+                if len(parts) >= 4:
+                    model_name = parts[0]
+                    data_name = parts[1]
+                    exp_desc = '_'.join(parts[2:-2])
+                    seq_len = parts[-2]
+                    mode_type = parts[-1]  # 'tuned' or 'train'
+                    
+                    key = f"{model_name}_{data_name}_{exp_desc}_{seq_len}"
+                    if key not in models_info:
+                        models_info[key] = {
+                            'model': model_name,
+                            'data': data_name,
+                            'experiment': exp_desc,
+                            'sequence_length': seq_len,
+                            'has_tuned': False,
+                            'has_default': False,
+                            'tuned_weights': False,
+                            'default_weights': False
+                        }
+                    
+                    if mode_type == 'tuned':
+                        models_info[key]['has_tuned'] = True
+                    elif mode_type == 'train':
+                        models_info[key]['has_default'] = True
+            except Exception as e:
+                continue
+    
+    # Check for weight files
+    if weights_path.exists():
+        for weight_file in weights_path.glob("*.pth"):
+            try:
+                stem = weight_file.stem
+                if stem.endswith('_tuned_best'):
+                    key = stem.replace('_tuned_best', '')
+                    if key in models_info:
+                        models_info[key]['tuned_weights'] = True
+                elif stem.endswith('_default_best'):
+                    key = stem.replace('_default_best', '')
+                    if key in models_info:
+                        models_info[key]['default_weights'] = True
+            except Exception as e:
+                continue
+    
+    if not models_info:
+        print("❌ No trained models found.")
+        return
+    
+    # Display models in a table format
+    print(f"{'Model':<12} {'Data':<20} {'Experiment':<25} {'Seq':<4} {'Tuned':<6} {'Default':<7} {'Status':<10}")
+    print("-" * 70)
+    
+    for key, info in sorted(models_info.items()):
+        tuned_status = "✅" if info['has_tuned'] and info['tuned_weights'] else "❌"
+        default_status = "✅" if info['has_default'] and info['default_weights'] else "❌"
+        
+        # Overall status
+        if info['tuned_weights'] and info['default_weights']:
+            status = "Complete"
+        elif info['tuned_weights'] or info['default_weights']:
+            status = "Partial"
+        else:
+            status = "No Weights"
+        
+        print(f"{info['model']:<12} {info['data']:<20} {info['experiment']:<25} "
+              f"{info['sequence_length']:<4} {tuned_status:<6} {default_status:<7} {status:<10}")
+    
+    print(f"\n📈 Total models: {len(models_info)}")
+    complete_models = sum(1 for info in models_info.values() 
+                         if info['tuned_weights'] and info['default_weights'])
+    print(f"🎯 Complete models (both tuned & default): {complete_models}")
+
+
+def show_performance_comparison(hyperparams_path: Path, results_path: Path) -> None:
+    """Show performance comparison tables."""
+    print("\n📊 PERFORMANCE COMPARISON")
+    print("-" * 70)
+    
+    # Collect performance data from hyperparameter files and results
+    performance_data = []
+    
+    # Look for results in Results directory
+    if results_path.exists():
+        for model_dir in results_path.iterdir():
+            if model_dir.is_dir():
+                for mode_dir in model_dir.iterdir():
+                    if mode_dir.is_dir():
+                        for exp_dir in mode_dir.iterdir():
+                            if exp_dir.is_dir():
+                                summary_file = exp_dir / "summary.json"
+                                if summary_file.exists():
+                                    try:
+                                        with open(summary_file, 'r') as f:
+                                            summary = json.load(f)
+                                        
+                                        metrics = summary.get('metrics', {})
+                                        hyperparams = summary.get('hyperparameters', {})
+                                        
+                                        performance_data.append({
+                                            'model': model_dir.name,
+                                            'mode': mode_dir.name,
+                                            'experiment': summary.get('experiment_description', 'N/A'),
+                                            'sequence_length': hyperparams.get('sequence_length', 'N/A'),
+                                            'val_loss': float(metrics.get('val_loss', 0)),
+                                            'test_loss': float(metrics.get('test_loss', 0)),
+                                            'val_r2': float(metrics.get('val_r2', 0)),
+                                            'test_r2': float(metrics.get('test_r2', 0)),
+                                            'val_mape': float(metrics.get('val_mape', 0)),
+                                            'test_mape': float(metrics.get('test_mape', 0))
+                                        })
+                                    except Exception as e:
+                                        continue
+    
+    if not performance_data:
+        print("❌ No performance data found. Run experiments first.")
+        return
+    
+    # Create DataFrame for easier manipulation
+    df = pd.DataFrame(performance_data)
+    
+    # Group by model and show comparison
+    print("\n🏆 BEST PERFORMANCE BY MODEL:")
+    print(f"{'Model':<12} {'Best Test Loss':<15} {'Best Test R²':<12} {'Best Test MAPE':<12} {'Experiment':<25}")
+    print("-" * 70)
+    
+    for model in df['model'].unique():
+        model_data = df[df['model'] == model]
+        best_loss = model_data.loc[model_data['test_loss'].idxmin()]
+        best_r2 = model_data.loc[model_data['test_r2'].idxmax()]
+        best_mape = model_data.loc[model_data['test_mape'].idxmin()]
+        
+        print(f"{model:<12} {best_loss['test_loss']:<15.4f} {best_r2['test_r2']:<12.4f} "
+              f"{best_mape['test_mape']:<12.2f} {best_loss['experiment']:<25}")
+    
+    # Show detailed comparison table
+    print(f"\n📋 DETAILED PERFORMANCE TABLE:")
+    print(f"{'Model':<8} {'Mode':<6} {'Experiment':<20} {'Seq':<4} {'Test Loss':<10} {'Test R²':<8} {'Test MAPE':<10}")
+    print("-" * 70)
+    
+    # Sort by test loss (best first)
+    df_sorted = df.sort_values('test_loss')
+    
+    for _, row in df_sorted.head(20).iterrows():  # Show top 20
+        print(f"{row['model']:<8} {row['mode']:<6} {str(row['experiment'])[:20]:<20} "
+              f"{row['sequence_length']:<4} {row['test_loss']:<10.4f} "
+              f"{row['test_r2']:<8.4f} {row['test_mape']:<10.2f}")
+    
+    if len(df_sorted) > 20:
+        print(f"... and {len(df_sorted) - 20} more results")
+
+
+def show_best_configurations(hyperparams_path: Path, results_path: Path) -> None:
+    """Show best performing configurations."""
+    print("\n🏆 BEST PERFORMING CONFIGURATIONS")
+    print("-" * 70)
+    
+    # Collect all results with hyperparameters
+    configs_data = []
+    
+    if results_path.exists():
+        for model_dir in results_path.iterdir():
+            if model_dir.is_dir():
+                for mode_dir in model_dir.iterdir():
+                    if mode_dir.is_dir():
+                        for exp_dir in mode_dir.iterdir():
+                            if exp_dir.is_dir():
+                                summary_file = exp_dir / "summary.json"
+                                if summary_file.exists():
+                                    try:
+                                        with open(summary_file, 'r') as f:
+                                            summary = json.load(f)
+                                        
+                                        metrics = summary.get('metrics', {})
+                                        hyperparams = summary.get('hyperparameters', {})
+                                        
+                                        config = {
+                                            'model': model_dir.name,
+                                            'mode': mode_dir.name,
+                                            'experiment': summary.get('experiment_description', 'N/A'),
+                                            'test_loss': float(metrics.get('test_loss', float('inf'))),
+                                            'test_r2': float(metrics.get('test_r2', 0)),
+                                            'hyperparams': hyperparams
+                                        }
+                                        configs_data.append(config)
+                                    except Exception as e:
+                                        continue
+    
+    if not configs_data:
+        print("❌ No configuration data found.")
+        return
+    
+    # Find best configurations
+    configs_data.sort(key=lambda x: x['test_loss'])
+    
+    print("🥇 TOP 5 BEST CONFIGURATIONS BY TEST LOSS:")
+    print("-" * 70)
+    
+    for i, config in enumerate(configs_data[:5], 1):
+        print(f"\n{i}. {config['model']} - {config['experiment']}")
+        print(f"   Test Loss: {config['test_loss']:.4f} | Test R²: {config['test_r2']:.4f}")
+        print(f"   Key Hyperparameters:")
+        
+        # Show important hyperparameters
+        important_params = ['learning_rate', 'batch_size', 'hidden_size', 'num_layers', 
+                          'dropout', 'sequence_length', 'epochs']
+        
+        for param in important_params:
+            if param in config['hyperparams']:
+                print(f"     {param}: {config['hyperparams'][param]}")
+
+
+def show_experiment_timeline(hyperparams_path: Path, weights_path: Path) -> None:
+    """Show experiment timeline based on file modification times."""
+    print("\n⏰ EXPERIMENT TIMELINE")
+    print("-" * 70)
+    
+    timeline_data = []
+    
+    # Collect file modification times
+    paths_to_check = [hyperparams_path, weights_path]
+    
+    for path in paths_to_check:
+        if path.exists():
+            for file_path in path.glob("*.json" if "Hyperparameters" in str(path) else "*.pth"):
+                try:
+                    mtime = file_path.stat().st_mtime
+                    timestamp = datetime.fromtimestamp(mtime)
+                    
+                    # Parse filename
+                    parts = file_path.stem.split('_')
+                    if len(parts) >= 4:
+                        model_name = parts[0]
+                        data_name = parts[1]
+                        exp_desc = '_'.join(parts[2:-2])
+                        
+                        file_type = "Hyperparameters" if file_path.suffix == ".json" else "Weights"
+                        
+                        timeline_data.append({
+                            'timestamp': timestamp,
+                            'model': model_name,
+                            'data': data_name,
+                            'experiment': exp_desc,
+                            'type': file_type,
+                            'file': file_path.name
+                        })
+                except Exception as e:
+                    continue
+    
+    if not timeline_data:
+        print("❌ No experiment files found.")
+        return
+    
+    # Sort by timestamp (newest first)
+    timeline_data.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    print(f"{'Date':<19} {'Time':<8} {'Model':<8} {'Data':<15} {'Type':<15} {'Experiment':<20}")
+    print("-" * 70)
+    
+    for entry in timeline_data[:30]:  # Show last 30 experiments
+        date_str = entry['timestamp'].strftime('%Y-%m-%d')
+        time_str = entry['timestamp'].strftime('%H:%M:%S')
+        print(f"{date_str:<19} {time_str:<8} {entry['model']:<8} {entry['data']:<15} "
+              f"{entry['type']:<15} {entry['experiment']:<20}")
+    
+    if len(timeline_data) > 30:
+        print(f"... and {len(timeline_data) - 30} older experiments")
+    
+    # Show summary statistics
+    print(f"\n📅 Timeline Summary:")
+    print(f"   Total experiments: {len(timeline_data)}")
+    if timeline_data:
+        oldest = min(timeline_data, key=lambda x: x['timestamp'])
+        newest = max(timeline_data, key=lambda x: x['timestamp'])
+        print(f"   Date range: {oldest['timestamp'].strftime('%Y-%m-%d')} to {newest['timestamp'].strftime('%Y-%m-%d')}")
+
+
+def show_file_paths(hyperparams_path: Path, weights_path: Path, results_path: Path) -> None:
+    """Show file paths for weights and hyperparameters."""
+    print("\n📁 FILE PATHS")
+    print("-" * 70)
+    
+    print("📂 Directory Structure:")
+    print(f"   Hyperparameters: {hyperparams_path}")
+    print(f"   Weights: {weights_path}")
+    print(f"   Results: {results_path}")
+    
+    # Show hyperparameter files
+    print(f"\n📄 HYPERPARAMETER FILES:")
+    if hyperparams_path.exists():
+        hp_files = list(hyperparams_path.glob("*.json"))
+        hp_files.sort()
+        
+        if hp_files:
+            print(f"{'Filename':<50} {'Size':<10} {'Modified':<20}")
+            print("-" * 70)
+            
+            for file_path in hp_files:
+                try:
+                    size = file_path.stat().st_size
+                    mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                    size_str = f"{size}B" if size < 1024 else f"{size//1024}KB"
+                    
+                    print(f"{file_path.name:<50} {size_str:<10} {mtime.strftime('%Y-%m-%d %H:%M'):<20}")
+                except Exception as e:
+                    print(f"{file_path.name:<50} {'Error':<10} {'N/A':<20}")
+        else:
+            print("   ❌ No hyperparameter files found")
+    else:
+        print("   ❌ Hyperparameters directory not found")
+    
+    # Show weight files
+    print(f"\n⚖️  WEIGHT FILES:")
+    if weights_path.exists():
+        weight_files = list(weights_path.glob("*.pth"))
+        weight_files.sort()
+        
+        if weight_files:
+            print(f"{'Filename':<50} {'Size':<10} {'Modified':<20}")
+            print("-" * 70)
+            
+            for file_path in weight_files:
+                try:
+                    size = file_path.stat().st_size
+                    mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                    
+                    if size < 1024:
+                        size_str = f"{size}B"
+                    elif size < 1024*1024:
+                        size_str = f"{size//1024}KB"
+                    else:
+                        size_str = f"{size//(1024*1024)}MB"
+                    
+                    print(f"{file_path.name:<50} {size_str:<10} {mtime.strftime('%Y-%m-%d %H:%M'):<20}")
+                except Exception as e:
+                    print(f"{file_path.name:<50} {'Error':<10} {'N/A':<20}")
+        else:
+            print("   ❌ No weight files found")
+    else:
+        print("   ❌ Weights directory not found")
+    
+    # Show results files
+    print(f"\n📊 RESULTS FILES:")
+    if results_path.exists():
+        result_files = []
+        for root, dirs, files in os.walk(results_path):
+            for file in files:
+                if file.endswith('.json'):
+                    result_files.append(Path(root) / file)
+        
+        if result_files:
+            result_files.sort()
+            print(f"{'Relative Path':<60} {'Size':<10} {'Modified':<20}")
+            print("-" * 70)
+            
+            for file_path in result_files:
+                try:
+                    size = file_path.stat().st_size
+                    mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                    size_str = f"{size}B" if size < 1024 else f"{size//1024}KB"
+                    
+                    rel_path = file_path.relative_to(results_path)
+                    print(f"{str(rel_path):<60} {size_str:<10} {mtime.strftime('%Y-%m-%d %H:%M'):<20}")
+                except Exception as e:
+                    print(f"{str(file_path):<60} {'Error':<10} {'N/A':<20}")
+        else:
+            print("   ❌ No results files found")
+    else:
+        print("   ❌ Results directory not found")
+    
+    print(f"\n💾 Storage Summary:")
+    total_size = 0
+    file_count = 0
+    
+    for path in [hyperparams_path, weights_path]:
+        if path.exists():
+            for file_path in path.rglob("*"):
+                if file_path.is_file():
+                    try:
+                        total_size += file_path.stat().st_size
+                        file_count += 1
+                    except:
+                        pass
+    
+    if total_size < 1024*1024:
+        size_str = f"{total_size//1024}KB"
+    else:
+        size_str = f"{total_size//(1024*1024)}MB"
+    
+    print(f"   Total files: {file_count}")
+    print(f"   Total size: {size_str}")
 
 
 def get_mode_description(mode: str) -> str:

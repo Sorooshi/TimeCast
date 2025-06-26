@@ -106,7 +106,76 @@ python main.py --model <MODEL_NAME> \
 | `tune` | Hyperparameter optimization only | First time with new data/model |
 | `train` | Training with tuned (`--train_tuned true`) or default (`--train_tuned false`) parameters | Main training mode |
 | `predict` | Load trained model and make predictions (`--predict_tuned true/false`) | Making predictions |
-| `report` | Display saved results from previous runs | Analysis and comparison |
+| `report` | Display comprehensive experiment analysis | Analysis and comparison |
+
+### 📊 Report Mode Features
+
+The report mode provides comprehensive analysis of your experiments with multiple view options:
+
+```bash
+python main.py --model <MODEL> --data_name <DATA> --mode report --report_type <TYPE>
+```
+
+#### Report Types Available:
+
+| Report Type | Description | Shows |
+|-------------|-------------|--------|
+| `all` | Complete comprehensive report | Everything combined |
+| `models` | Available trained models | Model status, completeness |
+| `performance` | Performance comparison tables | Best metrics, rankings |
+| `best` | Best performing configurations | Top 5 configurations with hyperparameters |
+| `timeline` | Experiment timeline | Chronological experiment history |
+| `files` | File paths and storage info | Directory structure, file sizes |
+
+#### 🔍 Report Examples:
+
+**Show all available models:**
+```bash
+python main.py --model LSTM --data_name test_data --mode report --report_type models
+```
+
+**Performance comparison:**
+```bash
+python main.py --model LSTM --data_name test_data --mode report --report_type performance
+```
+
+**Complete analysis:**
+```bash
+python main.py --model LSTM --data_name test_data --mode report --report_type all
+```
+
+#### 📈 What Each Report Shows:
+
+**🤖 Models Report:**
+- Available trained models with status (Complete/Partial/No Weights)
+- Tuned vs default model availability
+- Model completeness statistics
+- Experiment organization overview
+
+**📊 Performance Report:**
+- Best performance by model type
+- Detailed performance rankings
+- Test loss, R², and MAPE comparisons
+- Performance trends across experiments
+
+**🏆 Best Configurations Report:**
+- Top 5 best performing configurations
+- Key hyperparameters for best models
+- Performance metrics for each configuration
+- Hyperparameter recommendations
+
+**⏰ Timeline Report:**
+- Chronological experiment history
+- File modification timestamps
+- Experiment frequency analysis
+- Date range summaries
+
+**📁 Files Report:**
+- Complete directory structure
+- Hyperparameter files with sizes and dates
+- Weight files with storage information
+- Results files organization
+- Total storage usage statistics
 
 ### 📋 Arguments
 
@@ -120,6 +189,7 @@ python main.py --model <MODEL_NAME> \
 - `--experiment_description`: Custom experiment description (default: seq_len_{sequence_length})
 - `--train_tuned`: Whether to use tuned parameters for training (true/false, default: true)
 - `--predict_tuned`: Whether to use tuned model for prediction (true/false, default: true)
+- `--report_type`: Type of report to show (all/models/performance/best/timeline/files, default: all)
 - `--n_trials`: Hyperparameter tuning trials (default: 100)
 - `--epochs`: Training epochs (default: 100)
 - `--patience`: Early stopping patience (default: 25)
