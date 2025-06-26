@@ -125,7 +125,12 @@ class TimeSeriesTester:
         
         try:
             # Build base command
-            experiment_name = f"test_{mode}_{('tuned' if train_tuned else 'default') if mode == 'train' else mode}_{model.lower()}"
+            if mode == 'train':
+                experiment_name = f"test_{mode}_{('tuned' if train_tuned else 'default')}_{model.lower()}"
+            elif mode == 'predict':
+                experiment_name = f"test_{mode}_{('tuned' if predict_tuned else 'default')}_{model.lower()}"
+            else:
+                experiment_name = f"test_{mode}_{model.lower()}"
             cmd = [
                 sys.executable, "main.py",
                 "--model", model,
@@ -177,6 +182,59 @@ class TimeSeriesTester:
             self.log_test(f"{model} {mode_desc}", "FAIL", str(e))
             self.failed_tests.append(f"{model} {mode_desc}")
     
+    def test_predict_with_existing_model(self, model: str, predict_tuned: bool):
+        """Test predict mode using existing trained model."""
+        mode_desc = f"predict ({'tuned' if predict_tuned else 'default'})"
+        print(f"\n🧪 Testing {model} in {mode_desc} mode...")
+        
+        try:
+            # Use the experiment name that corresponds to the training that created the weights
+            if predict_tuned:
+                experiment_name = f"test_train_tuned_{model.lower()}"
+            else:
+                experiment_name = f"test_train_default_{model.lower()}"
+            
+            cmd = [
+                sys.executable, "main.py",
+                "--model", model,
+                "--data_name", "test_data",
+                "--mode", "predict",
+                "--experiment_description", experiment_name,
+                "--sequence_length", "5",
+                "--predict_tuned", "true" if predict_tuned else "false"
+            ]
+            
+            # Run command
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            
+            if result.returncode == 0:
+                # Check if expected files were created
+                expected_files = self._get_expected_files(model, "predict", experiment_name)
+                missing_files = []
+                
+                for file_type, file_path in expected_files.items():
+                    if not file_path.exists():
+                        missing_files.append(file_type)
+                
+                if missing_files:
+                    self.log_test(f"{model} {mode_desc}", "WARN", f"Missing files: {missing_files}")
+                else:
+                    self.log_test(f"{model} {mode_desc}", "PASS", "All expected files created")
+                    
+            else:
+                error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                if not error_msg:
+                    error_msg = f"Command failed with return code {result.returncode}"
+                self.log_test(f"{model} {mode_desc}", "FAIL", error_msg[:150])
+                self.failed_tests.append(f"{model} {mode_desc}")
+                
+        except subprocess.TimeoutExpired:
+            self.log_test(f"{model} {mode_desc}", "FAIL", "Test timed out after 2 minutes")
+            self.failed_tests.append(f"{model} {mode_desc}")
+        except Exception as e:
+            self.log_test(f"{model} {mode_desc}", "FAIL", str(e))
+            self.failed_tests.append(f"{model} {mode_desc}")
+    
     def _get_expected_files(self, model: str, mode: str, experiment: str):
         """Get expected files for the new four-mode system."""
         unique_specifier = f"{model}_test_data_{experiment}_5"  # sequence_length = 5
@@ -187,12 +245,11 @@ class TimeSeriesTester:
             expected_files['logs'] = self.base_dir / "Logs" / model / f"tune_log_*.txt"
             
         elif mode == 'train':
-            expected_files['tuned_weights'] = self.base_dir / "Weights" / f"{unique_specifier}_tuned_best.pth"
-            expected_files['logs'] = self.base_dir / "Logs" / model / f"train_log_*.txt"
-            
-        elif mode == 'train' and getattr(args, 'train_tuned', 'true').lower() in ['false', '0']:
-            expected_files['default_weights'] = self.base_dir / "Weights" / f"{unique_specifier}_default_best.pth"
-            expected_files['default_hyperparams'] = self.base_dir / "Hyperparameters" / f"{unique_specifier}_train.json"
+            if 'tuned' in experiment:
+                expected_files['tuned_weights'] = self.base_dir / "Weights" / f"{unique_specifier}_tuned_best.pth"
+            else:  # default training
+                expected_files['default_weights'] = self.base_dir / "Weights" / f"{unique_specifier}_default_best.pth"
+                expected_files['default_hyperparams'] = self.base_dir / "Hyperparameters" / f"{unique_specifier}_train.json"
             expected_files['logs'] = self.base_dir / "Logs" / model / f"train_log_*.txt"
             
         elif mode == 'predict':
@@ -239,7 +296,7 @@ class TimeSeriesTester:
             "--model", model,
             "--data_name", "test_data",
             "--mode", "predict",
-            "--experiment_description", f"test_tune_{model.lower()}",
+            "--experiment_description", f"test_train_tuned_{model.lower()}",
             "--sequence_length", "5",
             "--predict_tuned", "true"
         ]
@@ -445,11 +502,16 @@ class TimeSeriesTester:
         for model in test_models:
             for mode in test_modes:
                 if mode == "predict":
-                    # For predict mode, we need to have a trained model first
-                    self.test_mode(model, "train", epochs=1, train_tuned=False)  # Quick training with defaults
-                    # Test predict with both tuned and default models
-                    self.test_mode(model, mode, epochs=1, predict_tuned=True)  # Test tuned prediction
-                    self.test_mode(model, mode, epochs=1, predict_tuned=False)  # Test default prediction
+                    # For predict mode, we need to have trained models first
+                    # Train with tuned parameters 
+                    self.test_mode(model, "train", epochs=1, n_trials=2, k_folds=2, train_tuned=True)
+                    # Train with default parameters
+                    self.test_mode(model, "train", epochs=1, train_tuned=False)
+                    
+                    # Test predict with tuned model (use same experiment name as tuned training)
+                    self.test_predict_with_existing_model(model, predict_tuned=True)
+                    # Test predict with default model (use same experiment name as default training)
+                    self.test_predict_with_existing_model(model, predict_tuned=False)
                 elif mode == "train":
                     # Test train with both tuned and default parameters
                     self.test_mode(model, mode, epochs=1, n_trials=2, k_folds=2, train_tuned=True)  # Test tuned training
