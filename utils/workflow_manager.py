@@ -569,7 +569,7 @@ def show_performance_comparison(hyperparams_path: Path, results_path: Path) -> N
         best_mape = model_data.loc[model_data['test_mape'].idxmin()]
         
         print(f"{model:<12} {best_loss['test_loss']:<15.4f} {best_r2['test_r2']:<12.4f} "
-              f"{best_mape['test_mape']:<12.2f} {best_loss['experiment']:<25}")
+              f"{best_mape['test_mape']:<12.2f} {str(best_loss.get('experiment', 'N/A')):<25}")
     
     # Show detailed comparison table
     print(f"\n📋 DETAILED PERFORMANCE TABLE:")

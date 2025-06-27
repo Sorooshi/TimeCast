@@ -25,15 +25,15 @@ class TimeSeriesPreprocessor:
         self.target_scaler = None  # Will store scaler for targets
         
     def fit_scalers(self, data: np.ndarray) -> None:
-        """Fit scalers on training data."""
+        """Fit scalers on training data (features and target separately)."""
         if self.normalization is None:
             return
             
         from sklearn.preprocessing import StandardScaler, MinMaxScaler
         
-        # Initialize scalers for each feature
+        # Initialize scalers for each feature (excluding target column)
         self.scalers = []
-        for i in range(data.shape[1]):
+        for i in range(data.shape[1] - 1):  # Exclude last column (target)
             if self.normalization == 'standard':
                 scaler = StandardScaler()
             elif self.normalization == 'minmax':
@@ -45,9 +45,9 @@ class TimeSeriesPreprocessor:
             feature_data = data[:, i].reshape(-1, 1)
             scaler.fit(feature_data)
             self.scalers.append(scaler)
-            
-        # Fit target scaler on sum of all features (total consumption)
-        target_values = np.sum(data, axis=1).reshape(-1, 1)
+        
+        # Fit target scaler on last column only
+        target_values = data[:, -1].reshape(-1, 1)
         if self.normalization == 'standard':
             self.target_scaler = StandardScaler()
         elif self.normalization == 'minmax':
@@ -70,43 +70,47 @@ class TimeSeriesPreprocessor:
         return self.target_scaler.inverse_transform(normalized_targets.reshape(-1, 1)).ravel()
 
     def normalize_data(self, data: np.ndarray) -> np.ndarray:
-        """Apply normalization to data."""
+        """Apply normalization to feature data only (excluding target column)."""
         if self.normalization is None or self.scalers is None:
             return data
             
-        normalized_data = np.zeros_like(data)
-        for i in range(data.shape[1]):
-            feature_data = data[:, i].reshape(-1, 1)
-            normalized_data[:, i] = self.scalers[i].transform(feature_data).ravel()
+        # Only normalize features (exclude last column which is the target)
+        feature_data = data[:, :-1]  # All columns except last
+        normalized_features = np.zeros_like(feature_data)
+        
+        for i in range(feature_data.shape[1]):
+            feature_column = feature_data[:, i].reshape(-1, 1)
+            normalized_features[:, i] = self.scalers[i].transform(feature_column).ravel()
             
-        return normalized_data
+        return normalized_features
 
     def create_sequences(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Convert input data into sequences for time series prediction.
         
         Args:
-            data: Shape (timesteps, N) where N is number of features
+            data: Shape (timesteps, N) where N is number of features (including target as last column)
             
         Returns:
-            X: Shape (samples, sequence_length, features)
-            y: Shape (samples, 1) - total consumption across all merchants
+            X: Shape (samples, sequence_length, features) - normalized features only
+            y: Shape (samples, 1) - normalized target values
         """
-        # Normalize data if requested
-        normalized_data = self.normalize_data(data)
+        # Normalize feature data only (excludes target column)
+        normalized_features = self.normalize_data(data)
         
-        n_samples = len(normalized_data) - self.sequence_length
-        n_features = normalized_data.shape[1]
+        n_samples = len(normalized_features) - self.sequence_length
+        n_features = normalized_features.shape[1]  # Features only (no target)
         
         # Create sequences
         X = np.zeros((n_samples, self.sequence_length, n_features))
         y = np.zeros((n_samples, 1))
         
         for i in range(n_samples):
-            X[i] = normalized_data[i:i + self.sequence_length]
-            # Sum across all merchants to get total consumption
-            raw_target = np.sum(data[i + self.sequence_length])
-            # Normalize the target value
+            # Use normalized features for input sequences
+            X[i] = normalized_features[i:i + self.sequence_length]
+            
+            # Get raw target from original data and normalize separately
+            raw_target = data[i + self.sequence_length, -1]  # Last column only
             y[i] = self.normalize_targets(np.array([raw_target]))[0]
             
         return X, y
@@ -139,9 +143,9 @@ def prepare_data_for_model(
         test_loader: DataLoader for test data
         input_size: Number of input features (from original data)
     """
-    # Calculate input size from data (no time features added)
-    input_size = data.shape[1]
-    print(f"Input size (from data): {input_size}")
+    # Calculate input size from data (features only, excluding target)
+    input_size = data.shape[1] - 1  # Exclude target column
+    print(f"Input size (features only): {input_size}")
     
     preprocessor = TimeSeriesPreprocessor(
         sequence_length=sequence_length,
