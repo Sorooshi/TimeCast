@@ -197,7 +197,7 @@ def run_train_mode(
                 sequence_length=args.sequence_length,
                 normalization=args.normalization if args.normalization != 'none' else None
             )
-            
+        
             # Fit scalers on training data only
             preprocessor.fit_scalers(train_data)
             
@@ -233,7 +233,7 @@ def run_train_mode(
             model_params = filter_model_parameters(params)
             model = model_class(**model_params)
             trainer = TimeSeriesTrainer(model)
-            
+        
             # Train model
             history, metrics, predictions = trainer.train_and_evaluate(
                 fold_train_loader,

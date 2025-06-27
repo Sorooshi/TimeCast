@@ -225,11 +225,11 @@ class PatchTST(BaseTimeSeriesModel):
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         return {
             'patch_len': (8, 32),
-            'd_model': (32, 256),
+            'd_model': (8, 256),
             'n_heads': (2, 8),
             'n_layers': (2, 6),
             'dropout': (0.0, 0.5),
-            'learning_rate': (1e-6, 1e-3)
+            'learning_rate': (1e-9, 1e-3)
         }
     
     def configure_optimizers(self) -> torch.optim.Optimizer:

@@ -180,7 +180,7 @@ class HybridTCNLSTM(BaseTimeSeriesModel):
             'lstm_hidden_size': 64,
             'lstm_num_layers': 2,
             'dropout': 0.1,
-            'learning_rate': 1e-4
+            'learning_rate': 1e-5
         }
     
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
@@ -189,7 +189,7 @@ class HybridTCNLSTM(BaseTimeSeriesModel):
             'lstm_hidden_size': (32, 256),
             'lstm_num_layers': (1, 4),
             'dropout': (0.0, 0.5),
-            'learning_rate': (1e-6, 1e-3)
+            'learning_rate': (1e-9, 1e-3)
         }
     
     def configure_optimizers(self) -> torch.optim.Optimizer:

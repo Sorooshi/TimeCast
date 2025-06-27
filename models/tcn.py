@@ -158,7 +158,7 @@ class TCN(BaseTimeSeriesModel):
         return {
             'kernel_size': (2, 5),
             'dropout': (0.0, 0.5),
-            'learning_rate': (1e-6, 1e-3)
+            'learning_rate': (1e-9, 1e-3)
         }
     
     def configure_optimizers(self) -> torch.optim.Optimizer:

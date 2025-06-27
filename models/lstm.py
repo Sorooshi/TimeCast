@@ -62,8 +62,8 @@ class LSTM(BaseTimeSeriesModel):
     def get_parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         """Return parameter ranges for hyperparameter tuning"""
         return {
-            'hidden_size': (32, 256),  # Will be converted to int by Optuna
-            'num_layers': (1, 4),      # Will be converted to int by Optuna
+            'hidden_size': (8, 256),  # Will be converted to int by Optuna
+            'num_layers': (1, 6),      # Will be converted to int by Optuna
             'dropout': (0.0, 0.5),
-            'learning_rate': (1e-4, 1e-2)
+            'learning_rate': (1e-9, 1e-3)
         } 
