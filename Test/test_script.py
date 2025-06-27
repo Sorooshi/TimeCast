@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive Test Script for Time Series Forecasting Package
+Comprehensive Test Script for TimeCast
 Tests all models, modes, and functionality with the new four-mode system.
 
 Author: Soroosh Shalileh
@@ -29,7 +29,7 @@ if os.getcwd().endswith('Test'):
     os.chdir(root_dir)
 
 class TimeSeriesTester:
-    """Comprehensive tester for the time series forecasting package."""
+    """Comprehensive tester for the TimeCast package."""
     
     def __init__(self):
         self.test_results = []

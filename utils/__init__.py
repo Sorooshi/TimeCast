@@ -1,5 +1,5 @@
 """
-Utils package for Time Series Forecasting
+Utils package for TimeCast
 Contains utility modules for data processing, visualization, configuration management, etc.
 
 Author: Soroosh Shalileh

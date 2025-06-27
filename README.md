@@ -1,8 +1,8 @@
-# Time Series Forecasting Package
+# TimeCast
 
 **🌍 Languages:** [English](README.md) | [Русский](README_ru.md) | [فارسی](README_fa.md)
 
-A comprehensive PyTorch-based package for time series forecasting that implements multiple state-of-the-art deep learning models with automated hyperparameter tuning, experiment management, and robust result tracking. **Mathematically validated** against formal LaTeX formulation with complete dimensional correspondence.
+A comprehensive PyTorch-based library for time series forecasting that implements multiple state-of-the-art deep learning models with automated hyperparameter tuning, experiment management, and robust result tracking. **Mathematically validated** against formal LaTeX formulation with complete dimensional correspondence.
 
 ## 🚀 Key Features
 
@@ -20,7 +20,7 @@ A comprehensive PyTorch-based package for time series forecasting that implement
 
 ## 📐 Mathematical Foundation
 
-This package implements the time series forecasting formulation described in our research paper:
+TimeCast implements the time series forecasting formulation described in our research paper:
 
 ### Problem Formulation
 Given merchant-level transaction data, we forecast total consumption using historical sequences:
@@ -512,11 +512,11 @@ If you use this package in your research, please cite:
 
 ```bibtex
 @software{time_series_forecasting_2025,
-  title = {Time Series Forecasting Package: A Comprehensive PyTorch Framework with LaTeX Formulation Validation},
+  title = {TimeCast: A Comprehensive PyTorch Framework for Time Series Forecasting with LaTeX Formulation Validation},
   author = {Soroosh Shalileh},
   year = {2025},
   url = {https://github.com/Sorooshi/Time_Series_Forecasting},
-  note = {Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
+  note = {TimeCast: Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
 }
 ```
 

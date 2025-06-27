@@ -1,6 +1,6 @@
 """
 Feature Dimension Testing Script
-Tests the Time Series Forecasting system with different numbers of features.
+Tests the TimeCast system with different numbers of features.
 
 Author: Soroosh Shalileh
 Email: sr.shalileh@gmail.com

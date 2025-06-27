@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Data preprocessing and loading utilities.
 
 Author: Soroosh Shalileh

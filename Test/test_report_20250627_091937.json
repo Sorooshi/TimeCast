@@ -1,0 +1,212 @@
+{
+  "timestamp": "2025-06-27T09:19:37.289772",
+  "duration_seconds": 50.224435,
+  "summary": {
+    "total": 33,
+    "passed": 33,
+    "failed": 0,
+    "warned": 0,
+    "success_rate": 100.0
+  },
+  "failed_tests": [],
+  "detailed_results": [
+    {
+      "test": "Create Test Data",
+      "status": "PASS",
+      "message": "Created 200 rows with 5 features",
+      "timestamp": "2025-06-27T09:18:47.080020"
+    },
+    {
+      "test": "Model LSTM",
+      "status": "PASS",
+      "message": "Successfully imported and has 4 default parameters",
+      "timestamp": "2025-06-27T09:18:48.305340"
+    },
+    {
+      "test": "Model TCN",
+      "status": "PASS",
+      "message": "Successfully imported and has 4 default parameters",
+      "timestamp": "2025-06-27T09:18:48.305713"
+    },
+    {
+      "test": "Model Transformer",
+      "status": "PASS",
+      "message": "Successfully imported and has 7 default parameters",
+      "timestamp": "2025-06-27T09:18:48.305992"
+    },
+    {
+      "test": "Model HybridTCNLSTM",
+      "status": "PASS",
+      "message": "Successfully imported and has 6 default parameters",
+      "timestamp": "2025-06-27T09:18:48.306301"
+    },
+    {
+      "test": "Model MLP",
+      "status": "PASS",
+      "message": "Successfully imported and has 4 default parameters",
+      "timestamp": "2025-06-27T09:18:48.306521"
+    },
+    {
+      "test": "Help Message",
+      "status": "PASS",
+      "message": "All required elements present",
+      "timestamp": "2025-06-27T09:18:51.295715"
+    },
+    {
+      "test": "Data Loading",
+      "status": "PASS",
+      "message": "Loaded 200 rows",
+      "timestamp": "2025-06-27T09:18:51.848382"
+    },
+    {
+      "test": "Data Processing",
+      "status": "PASS",
+      "message": "Input size: 5",
+      "timestamp": "2025-06-27T09:18:51.859352"
+    },
+    {
+      "test": "Directory Creation",
+      "status": "PASS",
+      "message": "Successfully created test directory",
+      "timestamp": "2025-06-27T09:18:51.859565"
+    },
+    {
+      "test": "Experiment Directories",
+      "status": "PASS",
+      "message": "Created 8 directories",
+      "timestamp": "2025-06-27T09:18:51.861384"
+    },
+    {
+      "test": "Unique Specifier LSTM",
+      "status": "PASS",
+      "message": "Generated: LSTM_test_data_my_exp_10",
+      "timestamp": "2025-06-27T09:18:51.862101"
+    },
+    {
+      "test": "Unique Specifier TCN",
+      "status": "PASS",
+      "message": "Generated: TCN_merchant_data_No_Description_20",
+      "timestamp": "2025-06-27T09:18:51.862111"
+    },
+    {
+      "test": "Unique Specifier MLP",
+      "status": "PASS",
+      "message": "Generated: MLP_air_quality_experiment_1_5",
+      "timestamp": "2025-06-27T09:18:51.862119"
+    },
+    {
+      "test": "LSTM tune",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:18:55.056626"
+    },
+    {
+      "test": "LSTM train (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:18:57.535197"
+    },
+    {
+      "test": "LSTM train (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:00.034197"
+    },
+    {
+      "test": "LSTM train (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:02.701613"
+    },
+    {
+      "test": "LSTM train (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:05.265357"
+    },
+    {
+      "test": "LSTM predict (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:07.237148"
+    },
+    {
+      "test": "LSTM predict (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:09.156726"
+    },
+    {
+      "test": "MLP tune",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:11.587553"
+    },
+    {
+      "test": "MLP train (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:13.993670"
+    },
+    {
+      "test": "MLP train (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:16.321322"
+    },
+    {
+      "test": "MLP train (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:18.661883"
+    },
+    {
+      "test": "MLP train (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:20.997980"
+    },
+    {
+      "test": "MLP predict (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:22.795189"
+    },
+    {
+      "test": "MLP predict (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:24.608022"
+    },
+    {
+      "test": "LSTM tune",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:27.299491"
+    },
+    {
+      "test": "LSTM train (tuned)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:29.735002"
+    },
+    {
+      "test": "LSTM train (default)",
+      "status": "PASS",
+      "message": "All expected files created",
+      "timestamp": "2025-06-27T09:19:32.050601"
+    },
+    {
+      "test": "Full Workflow LSTM",
+      "status": "PASS",
+      "message": "All four modes completed successfully",
+      "timestamp": "2025-06-27T09:19:35.631231"
+    },
+    {
+      "test": "Report Mode",
+      "status": "PASS",
+      "message": "Report generated successfully",
+      "timestamp": "2025-06-27T09:19:37.289582"
+    }
+  ]
+}

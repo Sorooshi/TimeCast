@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Hybrid TCN-LSTM model implementation for time series forecasting.
 
 Author: Soroosh Shalileh

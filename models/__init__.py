@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Model registry and lazy loading implementation.
 
 Author: Soroosh Shalileh

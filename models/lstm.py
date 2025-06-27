@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 LSTM model implementation for time series forecasting.
 
 Author: Soroosh Shalileh

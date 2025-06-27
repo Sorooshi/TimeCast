@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pytest-compatible test file for Time Series Forecasting Package
+Pytest-compatible test file for TimeCast
 Tests the new three-mode system (tune, train, predict) with train_tuned and predict_tuned options.
 
 Author: Soroosh Shalileh

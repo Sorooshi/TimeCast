@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Training utilities and hyperparameter tuning functionality.
 
 Author: Soroosh Shalileh

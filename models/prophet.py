@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Prophet model implementation for time series forecasting.
 
 Author: Soroosh Shalileh

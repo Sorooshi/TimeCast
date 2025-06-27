@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Transformer model implementation for time series forecasting.
 
 Author: Soroosh Shalileh

@@ -511,11 +511,11 @@ Logs/Transformer/
 
 ```bibtex
 @software{time_series_forecasting_2025,
-  title = {Time Series Forecasting Package: A Comprehensive PyTorch Framework with LaTeX Formulation Validation},
+  title = {TimeCast: A Comprehensive PyTorch Framework for Time Series Forecasting with LaTeX Formulation Validation},
   author = {Soroosh Shalileh},
   year = {2025},
   url = {https://github.com/Sorooshi/Time_Series_Forecasting},
-  note = {Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
+  note = {TimeCast: Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
 }
 ```
 

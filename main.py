@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Main script for training and evaluating time series forecasting models.
 
 Author: Soroosh Shalileh
@@ -20,7 +20,7 @@ from utils.file_utils import create_unique_specifier
 
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
-    parser = argparse.ArgumentParser(description='Time Series Forecasting with PyTorch')
+    parser = argparse.ArgumentParser(description='TimeCast: Time Series Forecasting with PyTorch')
     
     # Required arguments
     parser.add_argument('--model', type=str, required=True,

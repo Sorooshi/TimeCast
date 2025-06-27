@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Temporal Convolutional Network (TCN) implementation for time series forecasting.
 
 Author: Soroosh Shalileh

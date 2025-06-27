@@ -1,5 +1,5 @@
 """
-Example: Merchant Data Preprocessing for Time Series Forecasting
+Example: Merchant Data Preprocessing for TimeCast
 ================================================================
 
 This script demonstrates how to preprocess raw merchant transaction data

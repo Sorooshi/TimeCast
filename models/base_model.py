@@ -1,5 +1,5 @@
 """
-Time Series Forecasting Package
+TimeCast
 Base model class for all time series models.
 
 Author: Soroosh Shalileh
