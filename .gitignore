@@ -89,6 +89,7 @@ Results/
 Predictions/
 Metrics/
 Logs/
+Weights/
 *.pdf
 *.png
 *.jpg
