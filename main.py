@@ -34,6 +34,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
                       help='Full path to the data file. If not provided, '
                       'will look for {data_name}.csv in data/ directory')
     
+    parser.add_argument('--test_data_name', type=str,
+                      help='Name of the test dataset for predict mode (without .csv extension)')
+    
+    parser.add_argument('--test_data_path', type=str,
+                      help='Full path to the test data file for predict mode')
+    
     parser.add_argument('--mode', type=str, 
                       choices=['tune', 'train', 'predict', 'report'],
                       default='train', help='Mode to run the model in')
@@ -44,14 +50,15 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument('--epochs', type=int, default=100,
                       help='Number of training epochs')
     
-    parser.add_argument('--patience', type=int, default=25,
+    parser.add_argument('--patience', type=int, default=50,
                       help='Patience for early stopping')
     
     parser.add_argument('--sequence_length', type=int, default=5,
                       help='Length of input sequences')
     
     parser.add_argument('--experiment_description', type=str, default=None,
-                      help='Description of the experiment. If not provided, defaults to sequence length')
+                      help='Description of the experiment. If not provided, defaults to sequence length.'
+                      'Avoid using underscores and special characters.')
     
     # K-fold cross validation arguments
     parser.add_argument('--k_folds', type=int, default=5,
@@ -139,25 +146,62 @@ def main():
         data_path = get_data_path(args.data_name, args.data_path)
         data, dates = load_and_validate_data(data_path)
         
-        # Prepare data
-        train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
-            data=data,
-            dates=dates,
-            sequence_length=args.sequence_length,
-            train_ratio=args.train_ratio,
-            val_ratio=args.val_ratio,
-            normalization=args.normalization if args.normalization != 'none' else None
-        )
+        # Prepare data based on mode
+        if args.mode in ['tune', 'train']:
+            # For tune/train modes, prepare train and validation loaders
+            train_loader, val_loader, input_size = prepare_data_for_model(
+                data=data,
+                test_data=None,  # No test data for tune/train modes
+                dates=dates,
+                sequence_length=args.sequence_length,
+                train_ratio=args.train_ratio,
+                val_ratio=args.val_ratio,
+                normalization=args.normalization if args.normalization != 'none' else None,
+                mode=args.mode
+            )
+            test_loader = None  # No test loader for tune/train modes
+        elif args.mode == 'predict':
+            # For predict mode, we need both the original train/val data AND separate test data
+            
+            # First, create train/val loaders from original training data (same as train mode)
+            train_loader, val_loader, input_size = prepare_data_for_model(
+                data=data,
+                test_data=None,
+                dates=dates,
+                sequence_length=args.sequence_length,
+                train_ratio=args.train_ratio,
+                val_ratio=args.val_ratio,
+                normalization=args.normalization if args.normalization != 'none' else None,
+                mode='train'
+            )
+            
+            # Then, load separate test data for predictions
+            if args.test_data_name is None and args.test_data_path is None:
+                raise ValueError("For predict mode, you must provide either --test_data_name or --test_data_path")
+            
+            # Load test data
+            test_data_path = get_data_path(args.test_data_name, args.test_data_path)
+            test_data, _ = load_and_validate_data(test_data_path)
+            
+            # Create test loader using same training data for scaler fitting
+            test_loader, _ = prepare_data_for_model(
+                data=data,  # Original training data for fitting scalers
+                test_data=test_data,  # Separate test data
+                dates=dates,
+                sequence_length=args.sequence_length,
+                normalization=args.normalization if args.normalization != 'none' else None,
+                mode='predict'
+            )
         
         # Execute the appropriate workflow based on mode
         if args.mode == 'tune':
-            run_tune_mode(model_class, model_name, unique_specifier, train_loader, 
-                         val_loader, test_loader, input_size, args)
+            run_tune_mode(model_class, unique_specifier, train_loader, 
+                         val_loader, input_size, args)
         
         elif args.mode == 'train':
             train_tuned = parse_train_tuned(args.train_tuned)
-            run_train_mode(model_class, model_name, unique_specifier, data, dates, 
-                          train_loader, val_loader, test_loader, input_size, args, train_tuned)
+            run_train_mode(model_class, model_name, unique_specifier, data, 
+                          train_loader, val_loader, input_size, args, train_tuned)
         
         elif args.mode == 'predict':
             predict_tuned = parse_predict_tuned(args.predict_tuned)

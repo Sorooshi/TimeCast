@@ -11,6 +11,9 @@ A comprehensive PyTorch-based library for time series forecasting that implement
 - **Experiment Management**: Organized experiment tracking with custom descriptions
 - **3 Training Modes**: Streamlined workflow for different use cases
 - **Robust Data Processing**: Clean, efficient preprocessing without artificial time features
+- **Professional Data Splitting**: Train/val splits for tune/train, separate test files for predict
+- **Automatic Plot Generation**: Training/validation curves saved automatically
+- **Complete Training History**: Epoch-by-epoch metrics and progress tracking
 - **Merchant Data Preprocessing**: Complete pipeline for transaction-to-timeseries conversion
 - **Mathematical Validation**: LaTeX formulation compatibility verified
 - **Comprehensive Logging**: Detailed file logging for debugging and analysis
@@ -101,12 +104,14 @@ python main.py --model <MODEL_NAME> \
 
 ### 🎯 Training Modes
 
-| Mode | Description | When to Use |
-|------|-------------|-------------|
-| `tune` | Hyperparameter optimization only | First time with new data/model |
-| `train` | Training with tuned (`--train_tuned true`) or default (`--train_tuned false`) parameters | Main training mode |
-| `predict` | Load trained model and make predictions (`--predict_tuned true/false`) | Making predictions |
-| `report` | Display comprehensive experiment analysis | Analysis and comparison |
+| Mode | Description | Data Usage | Artifacts Saved |
+|------|-------------|------------|-----------------|
+| `tune` | Hyperparameter optimization only | Train/val split from main data | Tuned parameters |
+| `train` | Training with tuned (`--train_tuned true`) or default (`--train_tuned false`) parameters | Train/val split from main data | **Plots, history, metrics, predictions** |
+| `predict` | Load trained model and make predictions (`--predict_tuned true/false`) | **Requires separate test data file** | Prediction results |
+| `report` | Display comprehensive experiment analysis | - | Analysis summaries |
+
+**🎨 New in Train Mode**: Automatically saves training/validation plots (loss, R², MAPE) and complete training history!
 
 ### 📊 Report Mode Features
 
@@ -185,6 +190,8 @@ python main.py --model LSTM --data_name test_data --mode report --report_type al
 
 #### Optional Arguments
 - `--data_path`: Full path to data file (default: data/{data_name}.csv)
+- `--test_data_name`: **[Predict mode only]** Name of test dataset (without .csv extension)
+- `--test_data_path`: **[Predict mode only]** Full path to test data file
 - `--mode`: Training mode (default: train)
 - `--experiment_description`: Custom experiment description (default: seq_len_{sequence_length})
 - `--train_tuned`: Whether to use tuned parameters for training (true/false, default: true)
@@ -195,6 +202,13 @@ python main.py --model LSTM --data_name test_data --mode report --report_type al
 - `--patience`: Early stopping patience (default: 25)
 - `--sequence_length`: Input sequence length (default: 10)
 - `--k_folds`: Number of folds for K-fold cross validation (default: 5)
+
+#### 🔄 Predict Mode Requirements
+**Important**: Predict mode now requires separate test data! You must provide either:
+- `--test_data_name my_test_data` (uses data/my_test_data.csv)
+- `--test_data_path /path/to/test_file.csv` (full path)
+
+This ensures **proper data isolation** and **no data leakage** between training and testing.
 
 ### 🔧 Important: Data Path Usage
 
@@ -285,9 +299,10 @@ python main.py --model Transformer \
                --epochs 100 \
                --sequence_length 5
 
-# Step 5: Make predictions with tuned model
+# Step 5: Make predictions with tuned model (requires separate test data)
 python main.py --model Transformer \
                --data_name merchant_processed \
+               --test_data_name merchant_test \
                --mode predict \
                --predict_tuned true \
                --experiment_description "merchant_tuned" \
@@ -429,30 +444,42 @@ date,merchant_1,merchant_2,merchant_3,merchant_4,merchant_5,hour,day_of_week,is_
 Each experiment creates a complete directory structure:
 
 ```
-Results/Transformer/tune/baseline_experiment/
+Results/Transformer/train/baseline_experiment/
 ├── summary.json              # Complete experiment summary
 └── plots/
-    ├── loss_plot.png         # Training/validation loss
-    ├── r2_plot.png           # R² score progression
-    └── mape_plot.png         # MAPE progression
+    ├── loss_plot.png         # 🆕 Training/validation loss curves
+    ├── r2_plot.png           # 🆕 R² score progression
+    └── mape_plot.png         # 🆕 MAPE progression
 
-History/Transformer/tune/baseline_experiment/
-└── training_history.csv     # Epoch-by-epoch training data
+History/Transformer/train/baseline_experiment/
+└── training_history.csv     # 🆕 Epoch-by-epoch training data
 
-Predictions/Transformer/tune/baseline_experiment/
+Predictions/Transformer/train/baseline_experiment/
 ├── val_predictions.csv      # Validation predictions vs targets
 └── test_predictions.csv     # Test predictions vs targets
 
-Metrics/Transformer/tune/baseline_experiment/
+Metrics/Transformer/train/baseline_experiment/
 └── metrics.json            # Final evaluation metrics
 
 Hyperparameters/Transformer/baseline_experiment/
 ├── tune_parameters.json    # Parameters from tuning
 └── apply_parameters.json   # Parameters used in apply mode
 
+Plots/Transformer/train/baseline_experiment/
+├── loss_plot.png           # 🆕 Automatically generated training plots
+├── r2_plot.png             # 🆕 R² progression visualization  
+└── mape_plot.png           # 🆕 MAPE progression visualization
+
 Logs/Transformer/
-└── tuning_log_20250620_HHMMSS.txt  # Detailed training logs
+└── training_log_20250627_HHMMSS.txt  # Detailed training logs
 ```
+
+### 🎨 New Automatic Plot Generation
+**Train mode now automatically saves:**
+- **Loss curves**: Training vs validation loss progression
+- **R² plots**: Model performance over epochs
+- **MAPE plots**: Mean Absolute Percentage Error trends
+- **Complete history**: CSV file with all epoch metrics
 
 ### Key Metrics Tracked
 - **Loss**: Mean Squared Error
@@ -461,6 +488,25 @@ Logs/Transformer/
 - **Training History**: Complete epoch-by-epoch progression
 
 ## 🔧 Advanced Features
+
+### 🔄 Professional Data Splitting
+**No Data Leakage Guarantee:**
+- **Tune/Train modes**: Use train/val splits from same dataset
+- **Predict mode**: Requires separate test CSV files
+- **Scaler fitting**: Always fitted on training data only
+- **Proper isolation**: Test data never seen during training
+
+**Data Flow:**
+```
+Tune/Train: data.csv → train/val splits → fit scalers on train → normalize both
+Predict:    data.csv + test.csv → fit scalers on train → apply to test
+```
+
+### 🎨 Automatic Visualization
+- **Training plots**: Loss, R², MAPE curves automatically generated
+- **Training history**: Complete epoch-by-epoch CSV records
+- **Organized storage**: All artifacts saved in structured directories
+- **Professional presentation**: Ready-to-use plots for reports/papers
 
 ### Mathematical Foundation
 - **LaTeX Formulation**: Implements formal mathematical framework
@@ -488,11 +534,27 @@ Logs/Transformer/
 
 1. **Start with example.py**: For merchant data, use the preprocessing pipeline
 2. **Use tuning mode**: Use `--mode tune` for new datasets
-3. **Use train with --train_tuned false**: For quick baselines and comparisons  
-4. **Experiment descriptions**: Use meaningful names for organization
-5. **Logging**: Check log files for detailed training information
-6. **Cross-validation**: Results are automatically validated on separate test sets
-7. **Mathematical validation**: Run `test_preprocessing_validation.py` to verify setup
+3. **Train mode benefits**: Now automatically saves plots and training history!
+4. **Predict mode**: Always prepare separate test CSV files for proper evaluation
+5. **Experiment descriptions**: Use meaningful names for organization
+6. **Data splitting**: Trust the automatic train/val splits - no manual intervention needed
+7. **Visualization**: Check the automatically generated plots in Plots/ directory
+8. **Training history**: Use the CSV files in History/ for detailed analysis
+9. **Logging**: Check log files for detailed training information
+10. **Mathematical validation**: Run `test_preprocessing_validation.py` to verify setup
+
+### 🎯 Quick Start Workflow
+```bash
+# 1. Train with automatic plot generation
+python main.py --model LSTM --data_name my_data --mode train --train_tuned false --epochs 50
+
+# 2. Check your results
+ls Plots/LSTM/train/seq_len_10/    # View generated plots
+ls History/LSTM/train/seq_len_10/  # Check training history
+
+# 3. Make predictions (with separate test file)
+python main.py --model LSTM --data_name my_data --test_data_name my_test --mode predict
+```
 
 ## 🤝 Contributing
 
@@ -528,5 +590,32 @@ If you use this package in your research, please cite:
 
 ---
 
+## 🆕 Recent Updates (v2.0)
+
+### 🎨 Enhanced Training Experience
+- **Automatic Plot Generation**: Train mode now automatically saves loss, R², and MAPE curves
+- **Complete Training History**: Epoch-by-epoch metrics saved to CSV files
+- **Professional Visualization**: Ready-to-use plots for reports and presentations
+
+### 🔄 Improved Data Handling  
+- **Professional Data Splitting**: Clean separation between training and testing data
+- **No Data Leakage**: Scalers always fitted on training data only
+- **Separate Test Files**: Predict mode requires independent test CSV files
+- **Proper Data Flow**: Train/val splits for tune/train, separate test data for predict
+
+### 🛠️ Enhanced CLI
+- **New Arguments**: `--test_data_name` and `--test_data_path` for predict mode
+- **Better Error Messages**: Clear guidance when files or models are missing
+- **Consistent Function Signatures**: All parameter mismatches resolved
+
+### 📊 Complete Artifact Management
+- **Organized Structure**: All results saved in structured directories
+- **Training Plots**: Automatically generated and saved in Plots/ directory
+- **Training History**: Complete CSV records in History/ directory
+- **Professional Output**: Everything ready for research and production use
+
+---
+
 *Built with ❤️ for the time series forecasting community*
 *Mathematically validated and research-ready ✅*
+*Enhanced with professional data handling and automatic visualization 🎨*

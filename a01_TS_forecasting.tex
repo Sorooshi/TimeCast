@@ -46,6 +46,8 @@ and the total category-level consumption as
 y_t = \sum_{m \in \mathcal{M}_c} x_{m,t}.
 \]
 
+\textbf{Implementation Note:} In the implementation, the input feature matrix contains N merchant columns plus additional contextual features (time-based, holiday indicators, etc.). The target variable \( y_t \) is stored as the last column of the data matrix and represents the sum of all merchant consumption values at time \( t \).
+
 
 Let \( \mathcal{H}_t = \{X_{t-k}, X_{t-k+1}, \dots, X_t\} \) denote the historical sequence of merchant-level transaction data for the past \( k+1 \) time steps.
 The forecasting objective is to learn a function \( f_\theta \), parameterized by (deep learning) model parameters \( \theta \), such that
@@ -65,9 +67,9 @@ We treat the problem as a sequence regression task, where the input is a time-se
 
 At each time step \( t \), the input feature vector is
 \[
-X_t = [x_{m_1,t}, x_{m_2,t}, \dots, x_{m_N,t}] \in \mathbb{R}^N
+X_t = [x_{m_1,t}, x_{m_2,t}, \dots, x_{m_N,t}, f_{1,t}, f_{2,t}, \dots, f_{K,t}] \in \mathbb{R}^{N+K}
 \]
-This vector may be optionally augmented with additional contextual features such as time-of-day, day-of-week, holiday indicators, and merchant embeddings if available. The model receives a sequence \( \mathcal{H}_t = \{X_{t-k}, \dots, X_t\} \) of such vectors as input. \footnote{Each vector \( X_t \in \mathbb{R}^N \) represents the transaction values across \( N \) merchant-category combinations (e.g., spending at each merchant or category at time \( t \)). To prepare this data for (deep learning) models, we stack these vectors along the temporal axis to form a matrix \( \mathcal{H}_t \in \mathbb{R}^{(k+1) \times N} \), where each row corresponds to the transactions at a specific time step. This structure allows models such as LSTMs, TCNs, and Transformers to process the sequence as a multivariate time series input.}
+where \( x_{m_i,t} \) represents the consumption of merchant \( m_i \) at time \( t \), and \( f_{j,t} \) represents contextual features such as time-of-day, day-of-week, holiday indicators, and other relevant variables. The target variable \( y_t = \sum_{i=1}^N x_{m_i,t} \) is the sum of all merchant consumption values. The model receives a sequence \( \mathcal{H}_t = \{X_{t-k}, \dots, X_t\} \) of such vectors as input. \footnote{Each vector \( X_t \in \mathbb{R}^N \) represents the transaction values across \( N \) merchant-category combinations (e.g., spending at each merchant or category at time \( t \)). To prepare this data for (deep learning) models, we stack these vectors along the temporal axis to form a matrix \( \mathcal{H}_t \in \mathbb{R}^{(k+1) \times N} \), where each row corresponds to the transactions at a specific time step. This structure allows models such as LSTMs, TCNs, and Transformers to process the sequence as a multivariate time series input.}
 
 \subsection{Model Architectures}
 

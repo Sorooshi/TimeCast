@@ -7,10 +7,10 @@ This script demonstrates how to preprocess raw merchant transaction data
 time series forecasting models, following the mathematical formulation
 in the LaTeX document.
 
-LaTeX Formulation:
-- X_t ∈ ℝ^N: merchant-level consumption vector at time t
-- 𝒽_t ∈ ℝ^{(k+1)×N}: historical sequence matrix
-- y_t = Σ x_{m,t}: total consumption across all merchants
+LaTeX Formulation (Implemented):
+- X_t ∈ ℝ^{N+contextual}: feature vector at time t (N merchants + contextual features)
+- 𝒽_t ∈ ℝ^{(k+1)×(N+contextual)}: historical sequence matrix
+- y_t = Σ x_{m,t}: total consumption across all merchants (sum of merchant columns)
 
 Author: Soroosh Shalileh
 Email: sr.shalileh@gmail.com
@@ -90,10 +90,11 @@ def aggregate_merchant_data(df: pd.DataFrame, freq: str = 'D') -> pd.DataFrame:
 
 def add_contextual_features(merchant_data: pd.DataFrame) -> pd.DataFrame:
     """
-    Add contextual features as mentioned in the LaTeX document:
+    Add contextual features and target variable as per LaTeX formulation:
     - Time-of-day, day-of-week, holiday indicators, etc.
+    - Target y_t = sum of merchant values at time t
     
-    This expands the feature space from N merchants to N + additional features.
+    This expands from N merchants to N + contextual + target columns.
     """
     print(f"\n➕ Adding contextual features...")
     
@@ -118,45 +119,59 @@ def add_contextual_features(merchant_data: pd.DataFrame) -> pd.DataFrame:
     holiday_dates = pd.to_datetime(['2023-01-01', '2023-07-04', '2023-12-25']).date
     enhanced_data['is_holiday'] = pd.Series(enhanced_data.index.date).isin(holiday_dates).astype(float).values
     
+    # Add target column: y_t = sum of all merchant values at time t
+    merchant_cols = [col for col in enhanced_data.columns if col.startswith('merchant_')]
+    enhanced_data['total_consumption'] = enhanced_data[merchant_cols].sum(axis=1)
+    
     print(f"Enhanced data shape: {enhanced_data.shape}")
     print(f"Added {enhanced_data.shape[1] - merchant_data.shape[1]} contextual features")
+    print(f"Target column 'total_consumption' = sum of {len(merchant_cols)} merchant columns")
     
     return enhanced_data
 
 
-def demonstrate_latex_formulation(data: pd.DataFrame, sequence_length: int = 10):
+def demonstrate_implementation_formulation(data: pd.DataFrame, sequence_length: int = 10):
     """
     Demonstrate how the preprocessed data maps to the LaTeX formulation.
     """
     print(f"\n📐 Demonstrating LaTeX Formulation Mapping:")
     print("=" * 50)
     
-    N = len([col for col in data.columns if col.startswith('merchant_')])
+    merchant_cols = [col for col in data.columns if col.startswith('merchant_')]
+    N = len(merchant_cols)  # Number of merchants
     total_features = data.shape[1]
+    feature_count = total_features - 1  # Exclude target column
     T = len(data)
     k = sequence_length - 1  # k+1 = sequence_length, so k = sequence_length - 1
     
     print(f"LaTeX symbols → Implementation:")
     print(f"  N (merchants) = {N}")
-    print(f"  Total features = {total_features} (N + contextual features)")
+    print(f"  Features (N + contextual) = {feature_count}")
+    print(f"  Total columns = {total_features} (features + target)")
     print(f"  T (time steps) = {T}")  
     print(f"  k+1 (sequence length) = {sequence_length}")
     print(f"  k (lookback) = {k}")
     
     print(f"\nData structure:")
-    print(f"  Raw data shape: {data.shape} → (T, N + features)")
-    print(f"  After windowing: (samples, {sequence_length}, {total_features})")
-    print(f"  Target y_t = sum of merchant values at time t")
+    print(f"  Raw data shape: {data.shape} → (T, N + contextual + target)")
+    print(f"  After windowing: (samples, {sequence_length}, {feature_count})")
+    print(f"  Target y_t = sum of merchant values (last column)")
     
-    # Show example of X_t vector (one time step)
-    print(f"\nExample X_t vector (merchant values at time t=0):")
-    merchant_cols = [col for col in data.columns if col.startswith('merchant_')]
-    example_xt = data.iloc[0][merchant_cols].values
-    print(f"  X_0 = {example_xt[:5]}... (showing first 5 merchants)")
+    # Show example of X_t vector (merchants only)
+    print(f"\nExample merchant values at time t=0:")
+    example_merchants = data.iloc[0][merchant_cols].values
+    print(f"  Merchants: {example_merchants}")
+    print(f"  Sum: {example_merchants.sum():.2f}")
     
-    # Show example target
-    example_target = example_xt.sum()
-    print(f"  y_0 = sum(X_0) = {example_target:.2f}")
+    # Show example target (should match sum)
+    example_target = data.iloc[0][data.columns[-1]]  # Last column
+    print(f"  y_0 (target): {example_target:.2f}")
+    
+    # Verify they match
+    if abs(example_merchants.sum() - example_target) < 0.001:
+        print(f"  ✅ Target matches sum of merchants")
+    else:
+        print(f"  ❌ Target mismatch!")
 
 
 def visualize_data(data: pd.DataFrame, save_path: str = "merchant_data_analysis.png"):
@@ -231,20 +246,20 @@ def test_with_models(data: np.ndarray, sequence_length: int = 3):
         val_ratio = 0.15
     
     try:
-        # Use the existing data preparation pipeline
-        train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
+        # Use the existing data preparation pipeline (train mode returns 3 values)
+        train_loader, val_loader, input_size = prepare_data_for_model(
             data=data,
             sequence_length=sequence_length,
             train_ratio=train_ratio,
             val_ratio=val_ratio,
-            batch_size=2  # Very small batch size for small dataset
+            batch_size=2,  # Very small batch size for small dataset
+            mode='train'  # Specify mode to get consistent return values
         )
         
         print(f"✅ Data preprocessing successful!")
         print(f"  Input size: {input_size}")
         print(f"  Train batches: {len(train_loader)}")
         print(f"  Val batches: {len(val_loader)}")
-        print(f"  Test batches: {len(test_loader)}")
         
         # Check one batch
         for batch_x, batch_y in train_loader:
@@ -283,7 +298,7 @@ def main():
     
     # Step 4: Demonstrate LaTeX formulation mapping  
     sequence_length = 3  # Use small sequence length for demonstration dataset
-    demonstrate_latex_formulation(enhanced_data, sequence_length=sequence_length)
+    demonstrate_implementation_formulation(enhanced_data, sequence_length=sequence_length)
     
     # Step 5: Create visualizations
     visualize_data(enhanced_data)

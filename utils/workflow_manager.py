@@ -87,11 +87,9 @@ def setup_logging(model_name: str, mode: str) -> Path:
 
 def run_tune_mode(
     model_class, 
-    model_name: str,
     unique_specifier: str,
     train_loader, 
     val_loader, 
-    test_loader,
     input_size: int,
     args
 ) -> None:
@@ -142,10 +140,8 @@ def run_train_mode(
     model_name: str,
     unique_specifier: str,
     data,
-    dates,
     train_loader,
     val_loader,
-    test_loader,
     input_size: int,
     args,
     train_tuned: bool
@@ -173,6 +169,7 @@ def run_train_mode(
         fold_scores = []
         best_fold_score = float('inf')
         best_fold_model = None
+        best_fold_history = None  # Track best fold's training history
         
         print(f"\nStarting {args.k_folds}-fold cross validation with tuned parameters...")
         
@@ -218,7 +215,7 @@ def run_train_mode(
             )
             
             # Create data loaders
-            batch_size = 16
+            batch_size = 8
             fold_train_loader = torch.utils.data.DataLoader(
                 train_dataset,
                 batch_size=batch_size,
@@ -253,6 +250,7 @@ def run_train_mode(
             if fold_score < best_fold_score:
                 best_fold_score = fold_score
                 best_fold_model = model.state_dict()
+                best_fold_history = history  # Save the actual training history from best fold
             
             logger.info(f"Fold {fold + 1} completed with validation loss: {fold_score:.4f}")
         
@@ -272,6 +270,83 @@ def run_train_mode(
         print(f"Best fold validation loss: {best_fold_score:.4f}")
         
         logger.info(f"Tuned training completed. Mean loss: {mean_score:.4f}, Best loss: {best_fold_score:.4f}")
+        
+        # For K-fold, create summary metrics and save results
+        # Use the best fold's history and the final evaluation on original test set
+        if best_fold_model is not None:
+            # Load best model and evaluate on original test set
+            model_params = filter_model_parameters(params)
+            final_model = model_class(**model_params)
+            final_model.load_state_dict(best_fold_model)
+            final_trainer = TimeSeriesTrainer(final_model)
+            
+            # Evaluate on original validation set (no test set for tune/train modes)
+            criterion = torch.nn.MSELoss()
+            val_loss, val_preds, val_targets, val_metrics = final_trainer.evaluate(val_loader, criterion)
+            # Use validation as test for cross-validation summary
+            test_loss, test_preds, test_targets, test_metrics = val_loss, val_preds, val_targets, val_metrics
+            
+            # Create summary metrics for tuned training
+            tuned_metrics = {
+                'val_loss': val_loss,
+                'val_r2': val_metrics['r2_score'],
+                'val_mape': val_metrics['mape'],
+                'test_loss': test_loss,
+                'test_r2': test_metrics['r2_score'],
+                'test_mape': test_metrics['mape'],
+                'cv_mean_loss': mean_score,
+                'cv_std_loss': std_score,
+                'best_fold_loss': best_fold_score
+            }
+            
+            tuned_predictions = {
+                'val_predictions': val_preds,
+                'val_targets': val_targets,
+                'test_predictions': test_preds,
+                'test_targets': test_targets
+            }
+            
+            # Use actual training history from the best fold
+            if best_fold_history is not None:
+                tuned_history = best_fold_history
+                # Add note about k-fold source to metadata
+                tuned_history['_kfold_info'] = {
+                    'n_folds': args.k_folds,
+                    'best_fold_loss': best_fold_score,
+                    'cv_mean_loss': mean_score,
+                    'cv_std_loss': std_score,
+                    'note': 'History from best performing fold in k-fold cross-validation'
+                }
+            else:
+                # Fallback if no history available (shouldn't happen)
+                tuned_history = {
+                    'train_loss': [],
+                    'val_loss': [],
+                    'train_r2': [],
+                    'val_r2': [],
+                    'train_mape': [],
+                    'val_mape': []
+                }
+            
+            # Add experiment description to parameters
+            params['experiment_description'] = args.experiment_description
+            
+            # Save tuned training results with plots and history
+            save_results(
+                model_name, 
+                tuned_history, 
+                tuned_metrics, 
+                tuned_predictions, 
+                params,
+                mode='train_tuned', 
+                experiment_description=args.experiment_description
+            )
+            
+            print(f"\nTuned Training Results:")
+            print(f"Final Validation loss: {val_loss:.4f}")
+            print(f"Final Test loss: {test_loss:.4f}")
+            print(f"Final Test R² score: {test_metrics['r2_score']:.4f}")
+            print(f"Final Test MAPE: {test_metrics['mape']:.2f}%")
         
     else:
         # DEFAULT TRAINING: Use simple train/val split with default parameters
@@ -295,7 +370,7 @@ def run_train_mode(
         history, metrics, predictions = trainer.train_and_evaluate(
             train_loader,
             val_loader,
-            test_loader,
+            val_loader,  # Use validation as test for default training
             epochs=args.epochs,
             patience=args.patience,
             params=params
@@ -304,8 +379,19 @@ def run_train_mode(
         # Save default model weights
         save_model_weights(model, unique_specifier, use_tuned=False)
         
-        # Save hyperparameters and results
+        # Save hyperparameters and results (including plots and history)
         save_hyperparameters_with_specifier(params, unique_specifier, 'train')
+        
+        # Save training results with plots and history
+        save_results(
+            model_name, 
+            history, 
+            metrics, 
+            predictions, 
+            params,
+            mode='train', 
+            experiment_description=args.experiment_description
+        )
         
         print(f"\nDefault Training Results:")
         print(f"Validation loss: {metrics['val_loss']:.4f}")
@@ -342,9 +428,37 @@ def run_predict_mode(
     
     if not weights_path.exists():
         model_type = "tuned" if predict_tuned else "default"
-        train_mode = "train --train_tuned true" if predict_tuned else "train --train_tuned false"
-        raise FileNotFoundError(f"No {model_type} model weights found for {unique_specifier}. "
-                              f"Please run '{train_mode}' mode first.")
+        train_tuned_flag = "true" if predict_tuned else "false"
+        
+        # Extract information for helpful command suggestion
+        # unique_specifier format: {model_name}_{data_name}_{experiment_description}_{sequence_length}
+        specifier_parts = unique_specifier.split('_')
+        if len(specifier_parts) >= 4:
+            suggested_model = specifier_parts[0]
+            suggested_data = specifier_parts[1]
+            suggested_seq_len = specifier_parts[-1]
+            
+            if len(specifier_parts) > 4:
+                suggested_experiment = '_'.join(specifier_parts[2:-1])
+                complete_command = (f"python main.py --mode train --model {suggested_model} "
+                                  f"--data_name {suggested_data} --train_tuned {train_tuned_flag} "
+                                  f"--sequence_length {suggested_seq_len} "
+                                  f"--experiment_description {suggested_experiment}")
+            else:
+                complete_command = (f"python main.py --mode train --model {suggested_model} "
+                                  f"--data_name {suggested_data} --train_tuned {train_tuned_flag} "
+                                  f"--sequence_length {suggested_seq_len}")
+        else:
+            # Fallback to basic command structure
+            complete_command = (f"python main.py --mode train --model {model_name} "
+                              f"--data_name {args.data_name} --train_tuned {train_tuned_flag}")
+        
+        raise FileNotFoundError(
+            f"No {model_type} model weights found for experiment: {unique_specifier}\n"
+            f"Please train the model first using:\n"
+            f"  {complete_command}\n"
+            f"\nNote: You need to run 'tune' mode before 'train' with --train_tuned true"
+        )
     
     logger.info(f"Loading {'tuned' if predict_tuned else 'default'} model weights from: {weights_path}")
     

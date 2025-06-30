@@ -56,39 +56,49 @@ class TimeSeriesTester:
             print(f"   └── {message}")
     
     def create_test_data(self) -> Path:
-        """Create synthetic test data."""
-        print("\n📊 Creating test data...")
+        """Use existing merchant_synthetic data for testing."""
+        print("\n📊 Using merchant_synthetic test data...")
         
-        # Create date range
-        dates = pd.date_range('2023-01-01', periods=200, freq='H')
-        
-        # Create synthetic features
-        np.random.seed(42)
-        n_features = 5
-        data = np.random.randn(200, n_features).cumsum(axis=0)
-        
-        # Add some trend and seasonality
-        trend = np.linspace(0, 10, 200).reshape(-1, 1)
-        seasonal = 2 * np.sin(2 * np.pi * np.arange(200) / 24).reshape(-1, 1)
-        
-        data[:, 0] += trend.flatten() + seasonal.flatten()
-        
-        # Create DataFrame
-        df = pd.DataFrame(data, columns=[f'feature_{i}' for i in range(n_features)])
-        df['date'] = dates
-        
-        # Reorder columns to have date first
-        df = df[['date'] + [f'feature_{i}' for i in range(n_features)]]
-        
-        # Save to data directory
+        # Use existing merchant_synthetic.csv
         data_dir = self.base_dir / "data"
-        data_dir.mkdir(exist_ok=True)
-        temp_file = data_dir / "test_data.csv"
-        df.to_csv(temp_file, index=False)
-        self.temp_data_path = temp_file
+        test_file = data_dir / "merchant_synthetic.csv"
         
-        self.log_test("Create Test Data", "PASS", f"Created {len(df)} rows with {n_features} features")
-        return temp_file
+        if test_file.exists():
+            # Read to validate
+            df = pd.read_csv(test_file)
+            self.temp_data_path = test_file
+            self.log_test("Use Test Data", "PASS", f"Using merchant_synthetic.csv with {len(df)} rows and {len(df.columns)} columns")
+            return test_file
+        else:
+            # Fallback: create test data if merchant_synthetic doesn't exist
+            dates = pd.date_range('2023-01-01', periods=200, freq='h')
+            
+            # Create synthetic features
+            np.random.seed(42)
+            n_features = 5
+            data = np.random.randn(200, n_features).cumsum(axis=0)
+            
+            # Add some trend and seasonality
+            trend = np.linspace(0, 10, 200).reshape(-1, 1)
+            seasonal = 2 * np.sin(2 * np.pi * np.arange(200) / 24).reshape(-1, 1)
+            
+            data[:, 0] += trend.flatten() + seasonal.flatten()
+            
+            # Create DataFrame
+            df = pd.DataFrame(data, columns=[f'feature_{i}' for i in range(n_features)])
+            df['date'] = dates
+            
+            # Reorder columns to have date first
+            df = df[['date'] + [f'feature_{i}' for i in range(n_features)]]
+            
+            # Save to data directory
+            data_dir.mkdir(exist_ok=True)
+            temp_file = data_dir / "test_data.csv"
+            df.to_csv(temp_file, index=False)
+            self.temp_data_path = temp_file
+            
+            self.log_test("Create Test Data", "PASS", f"Created {len(df)} rows with {n_features} features")
+            return temp_file
     
     def test_models_available(self):
         """Test that all models can be imported."""
@@ -128,13 +138,14 @@ class TimeSeriesTester:
             if mode == 'train':
                 experiment_name = f"test_{mode}_{('tuned' if train_tuned else 'default')}_{model.lower()}"
             elif mode == 'predict':
-                experiment_name = f"test_{mode}_{('tuned' if predict_tuned else 'default')}_{model.lower()}"
+                # For predict mode, use the corresponding training experiment name
+                experiment_name = f"test_train_{('tuned' if predict_tuned else 'default')}_{model.lower()}"
             else:
                 experiment_name = f"test_{mode}_{model.lower()}"
             cmd = [
                 sys.executable, "main.py",
                 "--model", model,
-                "--data_name", "test_data",
+                "--data_name", "merchant_synthetic",
                 "--mode", mode,
                 "--epochs", str(epochs),
                 "--patience", "2",
@@ -197,7 +208,8 @@ class TimeSeriesTester:
             cmd = [
                 sys.executable, "main.py",
                 "--model", model,
-                "--data_name", "test_data",
+                "--data_name", "merchant_synthetic",
+                "--test_data_name", "merchant_synthetic",
                 "--mode", "predict",
                 "--experiment_description", experiment_name,
                 "--sequence_length", "5",
@@ -237,7 +249,7 @@ class TimeSeriesTester:
     
     def _get_expected_files(self, model: str, mode: str, experiment: str):
         """Get expected files for the new four-mode system."""
-        unique_specifier = f"{model}_test_data_{experiment}_5"  # sequence_length = 5
+        unique_specifier = f"{model}_merchant_synthetic_{experiment}_5"  # sequence_length = 5
         expected_files = {}
         
         if mode == 'tune':
@@ -294,7 +306,8 @@ class TimeSeriesTester:
         cmd_tuned = [
             sys.executable, "main.py",
             "--model", model,
-            "--data_name", "test_data",
+            "--data_name", "merchant_synthetic",
+            "--test_data_name", "merchant_synthetic",
             "--mode", "predict",
             "--experiment_description", f"test_train_tuned_{model.lower()}",
             "--sequence_length", "5",
@@ -307,7 +320,8 @@ class TimeSeriesTester:
         cmd_default = [
             sys.executable, "main.py",
             "--model", model,
-            "--data_name", "test_data",
+            "--data_name", "merchant_synthetic",
+            "--test_data_name", "merchant_synthetic",
             "--mode", "predict",
             "--experiment_description", f"test_train_default_{model.lower()}",
             "--sequence_length", "5",
@@ -335,7 +349,7 @@ class TimeSeriesTester:
             
             # Test different combinations
             test_cases = [
-                ("LSTM", "test_data", 10, "my_exp", "LSTM_test_data_my_exp_10"),
+                ("LSTM", "merchant_synthetic", 10, "my_exp", "LSTM_merchant_synthetic_my_exp_10"),
                 ("TCN", "merchant_data", 20, None, "TCN_merchant_data_No_Description_20"),
                 ("MLP", "air_quality", 5, "experiment_1", "MLP_air_quality_experiment_1_5")
             ]
@@ -358,7 +372,7 @@ class TimeSeriesTester:
             cmd = [
                 sys.executable, "main.py",
                 "--model", "LSTM",
-                "--data_name", "test_data",
+                "--data_name", "merchant_synthetic",
                 "--mode", "report"
             ]
             
@@ -410,22 +424,23 @@ class TimeSeriesTester:
             from utils.data_preprocessing import prepare_data_for_model
             
             # Test data loading
-            data_path = get_data_path("test_data", None)
+            data_path = get_data_path("merchant_synthetic", None)
             data, dates = load_and_validate_data(data_path)
             
             if data is not None and len(data) > 0:
                 self.log_test("Data Loading", "PASS", f"Loaded {len(data)} rows")
                 
-                # Test data preparation
-                train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
+                #
+                train_loader, val_loader, input_size = prepare_data_for_model(
                     data=data,
                     dates=dates,
                     sequence_length=5,
                     train_ratio=0.7,
-                    val_ratio=0.15
+                    val_ratio=0.15,
+                    mode='train'  # Specify mode to get consistent return values
                 )
                 
-                if train_loader and val_loader and test_loader and input_size > 0:
+                if train_loader and val_loader and input_size > 0:
                     self.log_test("Data Processing", "PASS", f"Input size: {input_size}")
                 else:
                     self.log_test("Data Processing", "FAIL", "Failed to create data loaders")

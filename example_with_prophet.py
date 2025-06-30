@@ -311,19 +311,19 @@ def compare_with_framework_models(enhanced_data: pd.DataFrame):
     data_array = enhanced_data.values
     
     # Prepare data using the framework
-    train_loader, val_loader, test_loader, input_size = prepare_data_for_model(
+    train_loader, val_loader, input_size = prepare_data_for_model(
         data=data_array,
         sequence_length=3,  # Reduced for small dataset (30 days total)
         train_ratio=0.7,
         val_ratio=0.15,
-        batch_size=4  # Smaller batch size for small dataset
+        batch_size=4,  # Smaller batch size for small dataset
+        mode='train'  # Specify mode to get consistent return values
     )
     
     print(f"  📊 Data prepared for comparison:")
     print(f"    Input size: {input_size}")
     print(f"    Train batches: {len(train_loader)}")
     print(f"    Val batches: {len(val_loader)}")
-    print(f"    Test batches: {len(test_loader)}")
     
     # For Prophet, we need to prepare the data differently
     prophet_df = prepare_data_for_prophet(enhanced_data)

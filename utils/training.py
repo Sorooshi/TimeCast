@@ -8,10 +8,10 @@ Year: 2025
 """
 
 import torch
+import torch.nn as nn
 import numpy as np
-from typing import Tuple, List, Dict, Any
-from sklearn.model_selection import KFold
-import pandas as pd
+import logging
+from typing import Tuple, Dict, Any, List
 import optuna
 from sklearn.metrics import r2_score
 from models.base_model import BaseTimeSeriesModel
@@ -49,6 +49,18 @@ class TimeSeriesTrainer:
             optimizer.step()
             total_loss += loss.item()
         return total_loss / len(train_loader)
+
+    def validate(self, data_loader: torch.utils.data.DataLoader, criterion: torch.nn.Module) -> float:
+        """Simple validation that only returns loss (during training)"""
+        self.model.eval()
+        total_loss = 0.0
+        with torch.no_grad():
+            for batch_x, batch_y in data_loader:
+                batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
+                output = self.model(batch_x)
+                loss = criterion(output, batch_y)
+                total_loss += loss.item()
+        return total_loss / len(data_loader)
 
     def evaluate(
         self,
@@ -191,55 +203,6 @@ class TimeSeriesTrainer:
         
         return history, metrics, predictions
 
-    def k_fold_cross_validation(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
-        n_splits: int = 5,
-        batch_size: int = 32,
-        epochs: int = 100,
-        params: Dict[str, Any] = None
-    ) -> Tuple[List[float], Dict[str, Any]]:
-        kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
-        fold_scores = []
-
-        for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
-            X_train, X_val = X[train_idx], X[val_idx]
-            y_train, y_val = y[train_idx], y[val_idx]
-
-            train_dataset = torch.utils.data.TensorDataset(
-                torch.FloatTensor(X_train),
-                torch.FloatTensor(y_train)
-            )
-            val_dataset = torch.utils.data.TensorDataset(
-                torch.FloatTensor(X_val),
-                torch.FloatTensor(y_val)
-            )
-
-            train_loader = torch.utils.data.DataLoader(
-                train_dataset,
-                batch_size=batch_size,
-                shuffle=True
-            )
-            val_loader = torch.utils.data.DataLoader(
-                val_dataset,
-                batch_size=batch_size
-            )
-
-            optimizer = self.model.configure_optimizers()
-            criterion = torch.nn.MSELoss()
-
-            best_val_loss = float('inf')
-            for epoch in range(epochs):
-                train_loss = self.train_epoch(train_loader, optimizer, criterion)
-                val_loss = self.validate(val_loader, criterion)
-                
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-
-            fold_scores.append(best_val_loss)
-
-        return fold_scores, params
 
 def tune_hyperparameters(
     model_class,

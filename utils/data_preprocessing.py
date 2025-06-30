@@ -118,30 +118,32 @@ class TimeSeriesPreprocessor:
 
 def prepare_data_for_model(
     data: np.ndarray,
+    test_data: Optional[np.ndarray] = None,
     dates: Optional[pd.DatetimeIndex] = None,  # Keep for compatibility but not used
     sequence_length: int = 10,
     train_ratio: float = 0.7,
     val_ratio: float = 0.1,
     batch_size: int = 16,
-    normalization: str = 'minmax'  # Options: 'standard', 'minmax', None
-) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.utils.data.DataLoader, int]:
+    normalization: str = 'minmax',  # Options: 'standard', 'minmax', None
+    mode: str = 'tune'
+):
     """
-    Prepare data loaders for training, validation, and test.
+    Prepare data loaders for different modes.
     
     Args:
         data: Input data of shape (timesteps, n_features)
+        test_data: Test data for predict mode (should be None for tune/train modes)
         dates: Optional datetime index (kept for compatibility, not used)
         sequence_length: Length of input sequences
-        train_ratio: Proportion of data to use for training
-        val_ratio: Proportion of data to use for validation
+        train_ratio: Proportion of data to use for training (only for tune/train modes)
+        val_ratio: Proportion of data to use for validation (only for tune/train modes)
         batch_size: Batch size for data loaders
         normalization: Type of normalization to apply ('standard', 'minmax', or None)
+        mode: Mode of operation ('tune', 'train', or 'predict')
         
     Returns:
-        train_loader: DataLoader for training data
-        val_loader: DataLoader for validation data
-        test_loader: DataLoader for test data
-        input_size: Number of input features (from original data)
+        tune/train modes: (train_loader, val_loader, input_size)
+        predict mode: (test_loader, input_size)
     """
     # Calculate input size from data (features only, excluding target)
     input_size = data.shape[1] - 1  # Exclude target column
@@ -152,55 +154,75 @@ def prepare_data_for_model(
         normalization=normalization
     )
     
-    # Calculate split indices
-    n_samples = len(data)
-    train_size = int(n_samples * train_ratio)
-    val_size = int(n_samples * val_ratio)
-    
-    # Split raw data
-    train_data = data[:train_size]
-    val_data = data[train_size:train_size + val_size]
-    test_data = data[train_size + val_size:]
-    
-    print(f"Data splits - Train: {train_size}, Val: {val_size}, Test: {len(test_data)}")
-    
-    # Fit scalers on training data only
-    preprocessor.fit_scalers(train_data)
-    
-    # Create sequences for each split using the same preprocessor
-    X_train, y_train = preprocessor.create_sequences(train_data)
-    X_val, y_val = preprocessor.create_sequences(val_data)
-    X_test, y_test = preprocessor.create_sequences(test_data)
-    
-    print(f"Sequence shapes - X: {X_train.shape}, y: {y_train.shape}")
-    
-    # Create PyTorch datasets
-    train_dataset = torch.utils.data.TensorDataset(
-        torch.FloatTensor(X_train),
-        torch.FloatTensor(y_train)
-    )
-    val_dataset = torch.utils.data.TensorDataset(
-        torch.FloatTensor(X_val),
-        torch.FloatTensor(y_val)
-    )
-    test_dataset = torch.utils.data.TensorDataset(
-        torch.FloatTensor(X_test),
-        torch.FloatTensor(y_test)
-    )
-    
-    # Create data loaders
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True
-    )
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=batch_size
-    )
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=batch_size
-    )
-    
-    return train_loader, val_loader, test_loader, input_size 
+    if mode in ['tune', 'train']:
+        # Split data into train and validation only
+        n_samples = len(data)
+        train_size = int(n_samples * train_ratio)
+        val_size = n_samples - train_size  # Use remaining data for validation
+        
+        train_data = data[:train_size]
+        val_data = data[train_size:]
+        print(f"Data splits - Train: {train_size}, Val: {val_size}")
+        
+        # Fit scalers on training data only
+        preprocessor.fit_scalers(train_data)
+        
+        # Create sequences
+        X_train, y_train = preprocessor.create_sequences(train_data)
+        X_val, y_val = preprocessor.create_sequences(val_data)
+        
+        print(f"Sequence shapes - Train X: {X_train.shape}, y: {y_train.shape}")
+        print(f"Sequence shapes - Val X: {X_val.shape}, y: {y_val.shape}")
+        
+        # Create PyTorch datasets
+        train_dataset = torch.utils.data.TensorDataset(
+            torch.FloatTensor(X_train),
+            torch.FloatTensor(y_train)
+        )
+        val_dataset = torch.utils.data.TensorDataset(
+            torch.FloatTensor(X_val),
+            torch.FloatTensor(y_val)
+        )
+        
+        # Create data loaders
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset,
+            batch_size=batch_size
+        )
+        
+        return train_loader, val_loader, input_size
+        
+    elif mode == 'predict':
+        # Use original training data to fit scalers, then transform test data
+        if test_data is None:
+            raise ValueError("test_data must be provided for predict mode")
+            
+        print(f"Data splits - Training data: {len(data)}, Test data: {len(test_data)}")
+        
+        # Fit scalers on the original training data (same data used for training)
+        preprocessor.fit_scalers(data)
+        
+        # Transform and create sequences from test data
+        X_test, y_test = preprocessor.create_sequences(test_data)
+        
+        print(f"Sequence shapes - Test X: {X_test.shape}, y: {y_test.shape}")
+        
+        # Create PyTorch dataset
+        test_dataset = torch.utils.data.TensorDataset(
+            torch.FloatTensor(X_test),
+            torch.FloatTensor(y_test)
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=batch_size
+        )
+        
+        return test_loader, input_size
+        
+    else:
+        raise ValueError(f"Invalid mode: {mode}. Must be 'tune', 'train', or 'predict'") 

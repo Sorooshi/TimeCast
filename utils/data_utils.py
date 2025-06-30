@@ -79,7 +79,7 @@ def get_data_path(data_name: str, data_path: str = None) -> Path:
 
 def prepare_data_loaders(data, dates, sequence_length: int):
     """
-    Prepare data loaders for training.
+    [Depracated] Prepare data loaders for training.
     
     Args:
         data: Data array
