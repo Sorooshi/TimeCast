@@ -52,8 +52,8 @@ LaTeX: 𝒽_t ∈ ℝ^{(k+1)×N}  ↔  Implementation: (batch_size, sequence_len
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/Sorooshi/Time_Series_Forecasting.git
-cd Time_Series_Forecasting
+git clone https://github.com/Sorooshi/TimeCast.git
+cd TimeCast
 ```
 
 2. **Create and activate a virtual environment:**
@@ -365,7 +365,7 @@ python test_preprocessing_validation.py
 ## 🗂️ Project Structure
 
 ```
-Time_Series_Forecasting/
+TimeCast/
 ├── 📁 data/                     # Data files
 │   ├── merchant_synthetic.csv  # Sample merchant data
 │   ├── merchant_processed.csv  # Preprocessed merchant data
@@ -577,7 +577,7 @@ If you use this package in your research, please cite:
   title = {TimeCast: A Comprehensive PyTorch Framework for Time Series Forecasting with LaTeX Formulation Validation},
   author = {Soroosh Shalileh},
   year = {2025},
-  url = {https://github.com/Sorooshi/Time_Series_Forecasting},
+  url = {https://github.com/Sorooshi/TimeCast},
   note = {TimeCast: Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
 }
 ```

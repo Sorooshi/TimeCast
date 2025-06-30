@@ -52,8 +52,8 @@ LaTeX: 𝒽_t ∈ ℝ^{(k+1)×N}  ↔  Реализация: (batch_size, sequen
 
 1. **Клонируйте репозиторий:**
 ```bash
-git clone https://github.com/Sorooshi/Time_Series_Forecasting.git
-cd Time_Series_Forecasting
+git clone https://github.com/Sorooshi/TimeCast.git
+cd TimeCast
 ```
 
 2. **Создайте и активируйте виртуальное окружение:**
@@ -354,7 +354,7 @@ python test_preprocessing_validation.py
 ## 🗂️ Структура Проекта
 
 ```
-Time_Series_Forecasting/
+TimeCast/
 ├── 📁 data/                     # Файлы данных
 │   ├── merchant_synthetic.csv  # Пример данных мерчантов
 │   ├── merchant_processed.csv  # Предобработанные данные мерчантов
@@ -519,7 +519,7 @@ Logs/Transformer/
   title = {TimeCast: A Comprehensive PyTorch Framework for Time Series Forecasting with LaTeX Formulation Validation},
   author = {Soroosh Shalileh},
   year = {2025},
-  url = {https://github.com/Sorooshi/Time_Series_Forecasting},
+  url = {https://github.com/Sorooshi/TimeCast},
   note = {TimeCast: Modular time series forecasting with automated hyperparameter tuning and mathematical validation}
 }
 ```

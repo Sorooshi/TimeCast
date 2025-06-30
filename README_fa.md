@@ -52,8 +52,8 @@ LaTeX: 𝒽_t ∈ ℝ^{(k+1)×N}  ↔  پیاده‌سازی: (batch_size, seque
 
 1. **کلون کردن مخزن:**
 ```bash
-git clone https://github.com/Sorooshi/Time_Series_Forecasting.git
-cd Time_Series_Forecasting
+git clone https://github.com/Sorooshi/TimeCast.git
+cd TimeCast
 ```
 
 2. **ایجاد و فعال‌سازی محیط مجازی:**
@@ -331,7 +331,7 @@ python main.py --model LSTM \
 ## 📁 ساختار پروژه
 
 ```
-Time_Series_Forecasting/
+TimeCast/
 ├── data/                    # فایل‌های مجموعه داده
 ├── models/                  # پیاده‌سازی مدل‌ها
 ├── utils/                   # ابزارهای کمکی
@@ -362,7 +362,7 @@ Time_Series_Forecasting/
 
 سروش شلیله - [sorooshshalileh@example.com](mailto:sr.shalileh@gmail.com)
 
-لینک پروژه: [https://github.com/Sorooshi/Time_Series_Forecasting](https://github.com/Sorooshi/Time_Series_Forecasting)
+لینک پروژه: [https://github.com/Sorooshi/TimeCast](https://github.com/Sorooshi/TimeCast)
 
 ## 🎖️ تشکر
 
