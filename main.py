@@ -139,8 +139,15 @@ def main():
         )
         print(f"Unique specifier: {unique_specifier}")
         
-        # Set up logging
-        setup_logging(model_name, args.mode)
+        # Determine the actual mode for logging and directory creation
+        if args.mode == 'train':
+            train_tuned = parse_train_tuned(args.train_tuned)
+            actual_mode = 'train_tuned' if train_tuned else 'train_default'
+        else:
+            actual_mode = args.mode
+            
+        # Set up logging with the actual mode
+        setup_logging(model_name, args.data_name, actual_mode, args.experiment_description, args.sequence_length)
         
         # Load and validate data
         data_path = get_data_path(args.data_name, args.data_path)
@@ -195,7 +202,7 @@ def main():
         
         # Execute the appropriate workflow based on mode
         if args.mode == 'tune':
-            run_tune_mode(model_class, unique_specifier, train_loader, 
+            run_tune_mode(model_class, model_name, unique_specifier, train_loader, 
                          val_loader, input_size, args)
         
         elif args.mode == 'train':

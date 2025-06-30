@@ -13,14 +13,24 @@ from typing import Dict, Any
 
 
 def load_hyperparameters(
+    model_name: str,
+    data_name: str,
+    mode: str,
+    experiment_description: str,
+    sequence_length: int,
     unique_specifier: str, 
     model_class, 
     use_tuned: bool = True
 ) -> Dict[str, Any]:
     """
-    Load hyperparameters for the model using unique specifier.
+    Load hyperparameters for the model using hierarchical directory structure.
     
     Args:
+        model_name: Name of the model
+        data_name: Name of the dataset
+        mode: Mode to determine directory structure
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length
         unique_specifier: Unique identifier for the experiment
         model_class: The model class to get default parameters from
         use_tuned: Whether to use tuned parameters if available
@@ -29,20 +39,25 @@ def load_hyperparameters(
         Dictionary of hyperparameters
     """
     if use_tuned:
-        hyperparams_dir = Path("Hyperparameters")
+        from .file_utils import get_experiment_directory_name
+        
+        # Create hierarchical hyperparameters directory structure for tuned params
+        exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+        hyperparams_dir = Path("Hyperparameters") / model_name / "tune" / exp_subdir
         tuned_params_path = hyperparams_dir / f"{unique_specifier}_tuned.json"
         
         if tuned_params_path.exists():
             try:
                 with open(tuned_params_path, "r") as f:
                     params = json.load(f)
-                print(f"\nUsing previously tuned hyperparameters for {unique_specifier}")
+                print(f"\nUsing previously tuned hyperparameters from: {tuned_params_path}")
                 return params
             except (json.JSONDecodeError, FileNotFoundError) as e:
                 print(f"\nError loading tuned parameters: {e}")
                 print("Falling back to default parameters")
         else:
-            print(f"\nNo tuned parameters found for {unique_specifier}, using default parameters")
+            print(f"\nNo tuned parameters found at: {tuned_params_path}")
+            print("Using default parameters")
     else:
         print(f"\nUsing default parameters for {unique_specifier} (not tuned)")
     
@@ -51,20 +66,32 @@ def load_hyperparameters(
 
 def save_hyperparameters_with_specifier(
     params: Dict[str, Any], 
-    unique_specifier: str, 
-    mode: str
+    model_name: str,
+    data_name: str,
+    mode: str,
+    experiment_description: str,
+    sequence_length: int,
+    unique_specifier: str
 ) -> None:
     """
-    Save hyperparameters using unique specifier.
+    Save hyperparameters using hierarchical directory structure.
     
     Args:
         params: Parameters to save
+        model_name: Name of the model
+        data_name: Name of the dataset
+        mode: Mode (tune, train, etc.)
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length
         unique_specifier: Unique identifier for the experiment
-        mode: Mode (tune, train, apply_not_tuned, predict)
     """
     try:
-        hyperparams_dir = Path("Hyperparameters")
-        hyperparams_dir.mkdir(parents=True, exist_ok=True)
+        from .file_utils import get_experiment_directory_name, create_directory_safely
+        
+        # Create hierarchical hyperparameters directory structure
+        exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+        hyperparams_dir = Path("Hyperparameters") / model_name / mode / exp_subdir
+        create_directory_safely(hyperparams_dir)
         
         if mode == 'tune':
             # Save as tuned parameters for this specifier
@@ -81,18 +108,36 @@ def save_hyperparameters_with_specifier(
         print(f"Error saving hyperparameters: {e}")
 
 
-def load_model_weights(unique_specifier: str, use_tuned: bool = True) -> Path:
+def load_model_weights(
+    model_name: str, 
+    data_name: str, 
+    mode: str, 
+    experiment_description: str, 
+    sequence_length: int, 
+    use_tuned: bool = True
+) -> Path:
     """
-    Get the path to the model weights file.
+    Get the path to the model weights file using hierarchical directory structure.
     
     Args:
-        unique_specifier: Unique identifier for the experiment
+        model_name: Name of the model
+        data_name: Name of the dataset
+        mode: Training mode
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length
         use_tuned: Whether to use tuned model weights
         
     Returns:
         Path to the weights file
     """
-    weights_dir = Path("Weights")
+    from .file_utils import get_experiment_directory_name, create_unique_specifier
+    
+    # Create hierarchical weights directory structure
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+    weights_dir = Path("Weights") / model_name / mode / exp_subdir
+    
+    # Create unique specifier for filename
+    unique_specifier = create_unique_specifier(model_name, data_name, sequence_length, experiment_description)
     
     if use_tuned:
         weights_path = weights_dir / f"{unique_specifier}_tuned_best.pth"
@@ -102,19 +147,38 @@ def load_model_weights(unique_specifier: str, use_tuned: bool = True) -> Path:
     return weights_path
 
 
-def save_model_weights(model, unique_specifier: str, use_tuned: bool = True) -> None:
+def save_model_weights(
+    model, 
+    model_name: str, 
+    data_name: str, 
+    mode: str, 
+    experiment_description: str, 
+    sequence_length: int, 
+    use_tuned: bool = True
+) -> None:
     """
-    Save model weights using unique specifier.
+    Save model weights using hierarchical directory structure.
     
     Args:
         model: The trained model
-        unique_specifier: Unique identifier for the experiment
+        model_name: Name of the model
+        data_name: Name of the dataset
+        mode: Training mode
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length
         use_tuned: Whether these are tuned model weights
     """
     import torch
+    from .file_utils import get_experiment_directory_name, create_directory_safely
     
-    weights_dir = Path("Weights")
-    weights_dir.mkdir(parents=True, exist_ok=True)
+    # Create hierarchical weights directory structure
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+    weights_dir = Path("Weights") / model_name / mode / exp_subdir
+    create_directory_safely(weights_dir)
+    
+    # Create unique specifier for filename
+    from .file_utils import create_unique_specifier
+    unique_specifier = create_unique_specifier(model_name, data_name, sequence_length, experiment_description)
     
     if use_tuned:
         weights_path = weights_dir / f"{unique_specifier}_tuned_best.pth"

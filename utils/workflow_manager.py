@@ -24,7 +24,7 @@ from .config_manager import (
     save_hyperparameters_with_specifier, save_model_weights, load_model_weights
 )
 from .results_manager import save_results, load_and_print_results
-from .file_utils import create_directory_safely
+from .file_utils import create_directory_safely, get_experiment_directory_name
 from .data_preprocessing import prepare_data_for_model
 
 
@@ -47,18 +47,23 @@ def load_model_class(model_name: str):
         raise ValueError(f"Model {model_name} not found. Available models: LSTM, TCN, Transformer, HybridTCNLSTM, MLP, ProphetModel")
 
 
-def setup_logging(model_name: str, mode: str) -> Path:
+def setup_logging(model_name: str, data_name: str, mode: str, experiment_description: str = None, sequence_length: int = None) -> Path:
     """
     Set up logging for the experiment with actual file logging.
     
     Args:
         model_name: Name of the model
+        data_name: Name of the dataset
         mode: Training mode
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length for default naming
         
     Returns:
         Path to logs directory
     """
-    logs_dir = Path("Logs") / model_name
+    # Create hierarchical log directory structure
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+    logs_dir = Path("Logs") / model_name / mode / exp_subdir
     create_directory_safely(logs_dir)
     
     # Create a unique log file for this session
@@ -78,6 +83,8 @@ def setup_logging(model_name: str, mode: str) -> Path:
     
     logger = logging.getLogger(__name__)
     logger.info(f"Starting {mode} mode for {model_name}")
+    logger.info(f"Dataset: {data_name}")
+    logger.info(f"Experiment: {experiment_description or 'Default'}")
     logger.info(f"Logs will be saved to: {log_file}")
     
     print(f"\nLogs will be saved to: {log_file}")
@@ -87,6 +94,7 @@ def setup_logging(model_name: str, mode: str) -> Path:
 
 def run_tune_mode(
     model_class, 
+    model_name: str,
     unique_specifier: str,
     train_loader, 
     val_loader, 
@@ -125,12 +133,20 @@ def run_tune_mode(
     print(f"Best validation R² score: {tuning_metrics['val_r2']:.4f}")
     print(f"Best validation MAPE: {tuning_metrics['val_mape']:.2f}%")
     
-    # Save tuned hyperparameters with unique specifier
+    # Save tuned hyperparameters with hierarchical structure
     best_params['input_size'] = input_size
     best_params['sequence_length'] = args.sequence_length
     best_params['experiment_description'] = args.experiment_description
     
-    save_hyperparameters_with_specifier(best_params, unique_specifier, 'tune')
+    save_hyperparameters_with_specifier(
+        best_params, 
+        model_name, 
+        args.data_name, 
+        'tune', 
+        args.experiment_description, 
+        args.sequence_length, 
+        unique_specifier
+    )
     
     logger.info(f"Hyperparameters saved for experiment: {unique_specifier}")
 
@@ -157,12 +173,58 @@ def run_train_mode(
         # TUNED TRAINING: Use K-fold cross validation with tuned parameters
         logger.info(f"Starting tuned training with {args.k_folds}-fold cross validation")
         
-        # Load tuned hyperparameters
-        params = load_hyperparameters(unique_specifier, model_class, use_tuned=True)
+        # First, check if tuned hyperparameters actually exist
+        exp_subdir = get_experiment_directory_name(args.data_name, args.experiment_description, args.sequence_length)
+        hyperparams_dir = Path("Hyperparameters") / model_name / "tune" / exp_subdir
+        tuned_params_path = hyperparams_dir / f"{unique_specifier}_tuned.json"
+        
+        if not tuned_params_path.exists():
+            # Extract information for helpful command suggestion
+            specifier_parts = unique_specifier.split('_')
+            if len(specifier_parts) >= 4:
+                suggested_model = specifier_parts[0]
+                suggested_data = specifier_parts[1]
+                suggested_seq_len = specifier_parts[-1]
+                
+                if len(specifier_parts) > 4:
+                    suggested_experiment = '_'.join(specifier_parts[2:-1])
+                    complete_command = (f"python main.py --mode tune --model {suggested_model} "
+                                      f"--data_name {suggested_data} --n_trials 10 "
+                                      f"--sequence_length {suggested_seq_len} "
+                                      f"--experiment_description {suggested_experiment}")
+                else:
+                    complete_command = (f"python main.py --mode tune --model {suggested_model} "
+                                      f"--data_name {suggested_data} --n_trials 10 "
+                                      f"--sequence_length {suggested_seq_len}")
+            else:
+                # Fallback to basic command structure
+                complete_command = (f"python main.py --mode tune --model {model_name} "
+                                  f"--data_name {args.data_name} --n_trials 10")
+            
+            raise FileNotFoundError(
+                f"❌ No tuned hyperparameters found for experiment: {unique_specifier}\n"
+                f"📍 Expected file: {tuned_params_path}\n"
+                f"🔧 You need to run hyperparameter tuning first using:\n"
+                f"   {complete_command}\n"
+                f"\n💡 Alternative: Use --train_tuned false to train with default parameters"
+            )
+        
+        # Load tuned hyperparameters (we know they exist now)
+        params = load_hyperparameters(
+            model_name, 
+            args.data_name, 
+            'train_tuned', 
+            args.experiment_description, 
+            args.sequence_length, 
+            unique_specifier, 
+            model_class, 
+            use_tuned=True
+        )
         params['input_size'] = input_size
         params['sequence_length'] = args.sequence_length
         
-        logger.info(f"Using tuned parameters: {params}")
+        logger.info(f"✅ Using tuned parameters from: {tuned_params_path}")
+        logger.info(f"Parameters: {params}")
         
         # Prepare data for k-fold cross validation
         kfold = KFold(n_splits=args.k_folds, shuffle=True, random_state=42)
@@ -259,7 +321,8 @@ def run_train_mode(
             model_params = filter_model_parameters(params)
             final_model = model_class(**model_params)
             final_model.load_state_dict(best_fold_model)
-            save_model_weights(final_model, unique_specifier, use_tuned=True)
+            save_model_weights(final_model, model_name, args.data_name, 'train_tuned', 
+                             args.experiment_description, args.sequence_length, use_tuned=True)
         
         # Print cross-validation results
         mean_score = np.mean(fold_scores)
@@ -334,6 +397,7 @@ def run_train_mode(
             # Save tuned training results with plots and history
             save_results(
                 model_name, 
+                args.data_name,
                 tuned_history, 
                 tuned_metrics, 
                 tuned_predictions, 
@@ -377,19 +441,31 @@ def run_train_mode(
         )
     
         # Save default model weights
-        save_model_weights(model, unique_specifier, use_tuned=False)
+        save_model_weights(model, model_name, args.data_name, 'train_default', 
+                         args.experiment_description, args.sequence_length, use_tuned=False)
         
-        # Save hyperparameters and results (including plots and history)
-        save_hyperparameters_with_specifier(params, unique_specifier, 'train')
+        # Save hyperparameters (optional - for reproducibility)
+        # Note: These are default parameters that could be retrieved from model class,
+        # but saved for exact reproducibility of this specific run
+        save_hyperparameters_with_specifier(
+            params, 
+            model_name, 
+            args.data_name, 
+            'train_default', 
+            args.experiment_description, 
+            args.sequence_length, 
+            unique_specifier
+        )
         
         # Save training results with plots and history
         save_results(
             model_name, 
+            args.data_name,
             history, 
             metrics, 
             predictions, 
             params,
-            mode='train', 
+            mode='train_default', 
             experiment_description=args.experiment_description
         )
         
@@ -418,13 +494,25 @@ def run_predict_mode(
     """
     logger = logging.getLogger(__name__)
     
-    # Load appropriate hyperparameters
-    params = load_hyperparameters(unique_specifier, model_class, use_tuned=predict_tuned)
+    # Load appropriate hyperparameters - determine mode based on whether using tuned or default
+    load_mode = 'train_tuned' if predict_tuned else 'train_default'
+    params = load_hyperparameters(
+        model_name, 
+        args.data_name, 
+        load_mode, 
+        args.experiment_description, 
+        args.sequence_length, 
+        unique_specifier, 
+        model_class, 
+        use_tuned=predict_tuned
+    )
     params['input_size'] = input_size
     params['sequence_length'] = args.sequence_length
     
-    # Load model weights
-    weights_path = load_model_weights(unique_specifier, use_tuned=predict_tuned)
+    # Load model weights - determine mode based on whether using tuned or default
+    train_mode = 'train_tuned' if predict_tuned else 'train_default'
+    weights_path = load_model_weights(model_name, args.data_name, train_mode, 
+                                    args.experiment_description, args.sequence_length, use_tuned=predict_tuned)
     
     if not weights_path.exists():
         model_type = "tuned" if predict_tuned else "default"
@@ -502,7 +590,7 @@ def run_predict_mode(
     logger.info(f"Prediction completed. Test loss: {test_loss:.4f}")
     
     # Save prediction results
-    save_results(model_name, {}, metrics, predictions, params, 
+    save_results(model_name, args.data_name, {}, metrics, predictions, params, 
                 mode='predict', experiment_description=args.experiment_description)
 
 

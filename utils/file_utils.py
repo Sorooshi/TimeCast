@@ -73,11 +73,16 @@ def create_directory_safely(directory: Path) -> bool:
         return False
 
 
-def get_experiment_directory_name(experiment_description: str = None, sequence_length: int = None) -> str:
+def get_experiment_directory_name(
+    data_name: str,
+    experiment_description: str = None, 
+    sequence_length: int = None
+) -> str:
     """
     Generate a safe directory name for experiments.
     
     Args:
+        data_name: Name of the dataset
         experiment_description: Custom experiment description
         sequence_length: Sequence length to use as fallback
         
@@ -85,9 +90,9 @@ def get_experiment_directory_name(experiment_description: str = None, sequence_l
         Safe directory name string
     """
     if experiment_description:
-        exp_name = experiment_description
+        exp_name = f"{data_name}_seq_len_{sequence_length}_expr_desc_{experiment_description}"
     else:
-        exp_name = f"seq_len_{sequence_length or 'unknown'}"
+        exp_name = f"{data_name}_seq_len_{sequence_length}_expr_desc_{'unknown'}"
     
     # Replace spaces and special characters with underscores for safe directory names
     return "".join(c if c.isalnum() or c in "._-" else "_" for c in exp_name)
@@ -95,6 +100,7 @@ def get_experiment_directory_name(experiment_description: str = None, sequence_l
 
 def create_experiment_directories(
     model_name: str, 
+    data_name: str,
     mode: str, 
     experiment_description: str = None,
     sequence_length: int = None
@@ -104,37 +110,24 @@ def create_experiment_directories(
     
     Args:
         model_name: Name of the model
-        mode: Mode (tune, apply, apply_not_tuned, etc.)
+        data_name: Name of the dataset
+        mode: Mode (tune, train_default, train_tuned, predict, etc.)
         experiment_description: Custom experiment description
         sequence_length: Sequence length for default naming
         
     Returns:
         Dictionary of directory paths
     """
-    exp_subdir = get_experiment_directory_name(experiment_description, sequence_length)
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
     
-    # Create base directories - all at the same level as main.py
-    base_dir = Path(".").resolve()
+    directories = {}
     
-    directories = {
-        'results': base_dir / "Results" / model_name / mode / exp_subdir,
-        'hyperparams': base_dir / "Hyperparameters" / model_name / exp_subdir,
-        'predictions': base_dir / "Predictions" / model_name / mode / exp_subdir,
-        'metrics': base_dir / "Metrics" / model_name / mode / exp_subdir,
-        'history': base_dir / "History" / model_name / mode / exp_subdir,
-        'plots': base_dir / "Plots" / model_name / mode / exp_subdir,
-        'logs': base_dir / "Logs" / model_name / mode / exp_subdir,
-        'weights': base_dir / "Weights" / model_name / mode / exp_subdir
-    }
+    # Create hierarchical directory structure for each file type
+    base_dirs = ['Results', 'History', 'Plots', 'Predictions', 'Metrics', 'Weights', 'Hyperparameters', 'Logs']
     
-    # Create all directories with robust error handling
-    failed_dirs = []
-    for dir_name, directory in directories.items():
-        if not create_directory_safely(directory):
-            failed_dirs.append(f"{dir_name}: {directory}")
-    
-    if failed_dirs:
-        print(f"Warning: Failed to create some directories: {failed_dirs}")
-        print("Some results may not be saved properly.")
+    for base_dir in base_dirs:
+        dir_path = Path(base_dir) / model_name / mode / exp_subdir
+        create_directory_safely(dir_path)
+        directories[base_dir.lower()] = dir_path
     
     return directories 

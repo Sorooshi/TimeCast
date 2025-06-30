@@ -468,7 +468,7 @@ class TimeSeriesTester:
                 self.log_test("Directory Creation", "FAIL", "Failed to create test directory")
                 
             # Test experiment directory creation
-            dirs = create_experiment_directories("TEST_MODEL", "test_mode", "test_exp", 10)
+            dirs = create_experiment_directories("TEST_MODEL", "test_data", "test_mode", "test_exp", 10)
             
             created_dirs = [name for name, path in dirs.items() if path.exists()]
             if len(created_dirs) > 0:

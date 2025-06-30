@@ -12,13 +12,14 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any, List
-from .file_utils import create_experiment_directories, get_experiment_directory_name
+from .file_utils import create_experiment_directories, get_experiment_directory_name, create_directory_safely
 from .visualization import save_training_plots
 from .config_manager import save_hyperparameters
 
 
 def save_results(
     model_name: str,
+    data_name: str,
     history: Dict[str, List[float]],
     metrics: Dict[str, float],
     predictions: Dict[str, np.ndarray],
@@ -27,10 +28,28 @@ def save_results(
     experiment_description: str = None
 ):
     """Save training results, metrics, and predictions."""
-    # Create all necessary directories
-    directories = create_experiment_directories(
-        model_name, mode, experiment_description, params.get('sequence_length')
-    )
+    
+    # Determine which directories we actually need based on mode
+    if mode == 'train_tuned' or mode == 'train_default':
+        # For training modes, we don't save hyperparameters (tune mode saves them, defaults are handled separately)
+        # and logs are handled separately by setup_logging
+        needed_dirs = ['results', 'history', 'plots', 'predictions', 'metrics']
+    elif mode == 'predict':
+        # For predict mode, we don't save weights (only load existing) or hyperparameters
+        # and logs are handled separately by setup_logging  
+        needed_dirs = ['results', 'predictions', 'metrics']
+    else:
+        # For other modes (like tune), create all directories
+        needed_dirs = ['results', 'history', 'plots', 'predictions', 'metrics', 'hyperparameters', 'logs', 'weights']
+    
+    # Create only the necessary directories
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, params.get('sequence_length'))
+    
+    directories = {}
+    for dir_name in needed_dirs:
+        dir_path = Path(dir_name.capitalize()) / model_name / mode / exp_subdir
+        create_directory_safely(dir_path)
+        directories[dir_name] = dir_path
     
     # Add experiment description to parameters
     params_with_exp = params.copy()
@@ -38,11 +57,40 @@ def save_results(
     
     # Save training history
     try:
-        history_df = pd.DataFrame(history)
-        history_df.to_csv(directories['history'] / "training_history.csv", index=False)
-        print(f"Saved training history to: {directories['history'] / 'training_history.csv'}")
+        # Handle different types of history data structures
+        if history and isinstance(history, dict):
+            # Filter out non-numeric data (like metadata from k-fold)
+            clean_history = {}
+            for key, value in history.items():
+                if not key.startswith('_') and isinstance(value, (list, np.ndarray)):
+                    # Ensure all values are lists and have the same length
+                    if isinstance(value, np.ndarray):
+                        value = value.tolist()
+                    clean_history[key] = value
+            
+            # Only create DataFrame if we have clean data
+            if clean_history:
+                # Ensure all lists have the same length
+                lengths = [len(v) for v in clean_history.values()]
+                if len(set(lengths)) == 1:  # All same length
+                    history_df = pd.DataFrame(clean_history)
+                    history_df.to_csv(directories['history'] / "training_history.csv", index=False)
+                    print(f"Saved training history to: {directories['history'] / 'training_history.csv'}")
+                else:
+                    print(f"Warning: Training history data has inconsistent lengths - skipping CSV save")
+            else:
+                print(f"Note: No suitable training history data to save (K-fold metadata only)")
+        else:
+            print(f"Note: No training history data to save")
     except Exception as e:
         print(f"Error saving training history: {e}")
+        # Try to save whatever we can as JSON for debugging
+        try:
+            with open(directories['history'] / "training_history.json", "w") as f:
+                json.dump(history, f, indent=4, default=str)
+            print(f"Saved training history as JSON for debugging: {directories['history'] / 'training_history.json'}")
+        except:
+            print(f"Could not save training history in any format")
     
     # Save training plots
     try:
@@ -61,51 +109,79 @@ def save_results(
     
     # Save predictions and calculate per-sample metrics
     try:
-        for split in ["val", "test"]:
-            predictions_df = pd.DataFrame({
-                'predictions': predictions[f'{split}_predictions'].flatten(),
-                'targets': predictions[f'{split}_targets'].flatten()
+        # Check if test and validation predictions are different
+        val_preds = predictions['val_predictions'].flatten()
+        test_preds = predictions['test_predictions'].flatten() 
+        val_targets = predictions['val_targets'].flatten()
+        test_targets = predictions['test_targets'].flatten()
+        
+        # Always save validation predictions
+        val_predictions_df = pd.DataFrame({
+            'predictions': val_preds,
+            'targets': val_targets
+        })
+        val_predictions_df['absolute_error'] = abs(val_predictions_df['predictions'] - val_predictions_df['targets'])
+        val_predictions_df['squared_error'] = (val_predictions_df['predictions'] - val_predictions_df['targets']) ** 2
+        # Calculate percentage error (avoiding division by zero)
+        mask = val_predictions_df['targets'] != 0
+        val_predictions_df['percentage_error'] = 0.0
+        val_predictions_df.loc[mask, 'percentage_error'] = abs(
+            (val_predictions_df.loc[mask, 'predictions'] - val_predictions_df.loc[mask, 'targets'])
+            / val_predictions_df.loc[mask, 'targets'] * 100
+        )
+        val_predictions_df.to_csv(directories['predictions'] / "val_predictions.csv", index=False)
+        
+        # Only save test predictions if they're different from validation predictions
+        if not (np.array_equal(val_preds, test_preds) and np.array_equal(val_targets, test_targets)):
+            test_predictions_df = pd.DataFrame({
+                'predictions': test_preds,
+                'targets': test_targets
             })
-            predictions_df['absolute_error'] = abs(
-                predictions_df['predictions'] - predictions_df['targets']
-            )
-            predictions_df['squared_error'] = (
-                predictions_df['predictions'] - predictions_df['targets']
-            ) ** 2
+            test_predictions_df['absolute_error'] = abs(test_predictions_df['predictions'] - test_predictions_df['targets'])
+            test_predictions_df['squared_error'] = (test_predictions_df['predictions'] - test_predictions_df['targets']) ** 2
             # Calculate percentage error (avoiding division by zero)
-            mask = predictions_df['targets'] != 0
-            predictions_df['percentage_error'] = 0.0
-            predictions_df.loc[mask, 'percentage_error'] = abs(
-                (predictions_df.loc[mask, 'predictions'] - predictions_df.loc[mask, 'targets'])
-                / predictions_df.loc[mask, 'targets'] * 100
+            mask = test_predictions_df['targets'] != 0
+            test_predictions_df['percentage_error'] = 0.0
+            test_predictions_df.loc[mask, 'percentage_error'] = abs(
+                (test_predictions_df.loc[mask, 'predictions'] - test_predictions_df.loc[mask, 'targets'])
+                / test_predictions_df.loc[mask, 'targets'] * 100
             )
-            predictions_df.to_csv(directories['predictions'] / f"{split}_predictions.csv", index=False)
-        print(f"Saved predictions to: {directories['predictions']}")
+            test_predictions_df.to_csv(directories['predictions'] / "test_predictions.csv", index=False)
+            print(f"Saved predictions to: {directories['predictions']}")
+        else:
+            print(f"Saved validation predictions to: {directories['predictions']}")
+            print(f"Note: Test predictions identical to validation predictions - not duplicated")
+            
     except Exception as e:
         print(f"Error saving predictions: {e}")
     
-    # Save hyperparameters
-    save_hyperparameters(
-        params_with_exp, 
-        directories['hyperparams'], 
-        mode, 
-        is_tune_mode=(mode == 'tune')
-    )
-    
     # Save summary
     try:
+        # Build predictions file paths - test might not exist if identical to val
+        val_preds = predictions['val_predictions'].flatten()
+        test_preds = predictions['test_predictions'].flatten()
+        val_targets = predictions['val_targets'].flatten()
+        test_targets = predictions['test_targets'].flatten()
+        
+        predictions_files = {
+            'val': str(directories['predictions'] / "val_predictions.csv")
+        }
+        
+        # Only include test file if it was actually saved (different from val)
+        if not (np.array_equal(val_preds, test_preds) and np.array_equal(val_targets, test_targets)):
+            predictions_files['test'] = str(directories['predictions'] / "test_predictions.csv")
+        else:
+            predictions_files['test'] = "identical_to_validation"
+        
         summary = {
             'experiment_description': experiment_description,
             'metrics': metrics_formatted,
             'hyperparameters': params_with_exp,
             'files': {
                 'history': str(directories['history'] / "training_history.csv"),
-                'predictions': {
-                    'val': str(directories['predictions'] / "val_predictions.csv"),
-                    'test': str(directories['predictions'] / "test_predictions.csv")
-                },
+                'predictions': predictions_files,
                 'metrics': str(directories['metrics'] / "metrics.json"),
-                'hyperparameters': str(directories['hyperparams'] / f"{mode}_parameters.json"),
+                'hyperparameters': f"Hierarchical: Hyperparameters/{model_name}/{mode}/{get_experiment_directory_name(data_name, experiment_description, params.get('sequence_length'))}/",
                 'plots': {
                     'loss': str(directories['plots'] / "loss_plot.png"),
                     'r2': str(directories['plots'] / "r2_plot.png"),
@@ -143,18 +219,28 @@ def print_results_summary(
     print(f"  MAPE: {metrics['test_mape']:.2f}%")
     print("-" * 50)
     print(f"\nResults saved in:")
-    print(f"  Results: {directories['results']}")
-    print(f"  History: {directories['history']}")
-    print(f"  Predictions: {directories['predictions']}")
-    print(f"  Metrics: {directories['metrics']}")
-    print(f"  Hyperparameters: {directories['hyperparams']}")
-    print(f"  Plots: {directories['plots']}")
+    
+    # Only print directories that exist in the dictionary
+    if 'results' in directories:
+        print(f"  Results: {directories['results']}")
+    if 'history' in directories:
+        print(f"  History: {directories['history']}")
+    if 'predictions' in directories:
+        print(f"  Predictions: {directories['predictions']}")
+    if 'metrics' in directories:
+        print(f"  Metrics: {directories['metrics']}")
+    if 'hyperparameters' in directories:
+        print(f"  Hyperparameters: {directories['hyperparameters']}")
+    elif 'hyperparameters_path' in directories:
+        print(f"  Hyperparameters: Used existing tuned parameters")
+    if 'plots' in directories:
+        print(f"  Plots: {directories['plots']}")
 
 
-def load_and_print_results(model_name: str, mode: str, experiment_description: str = None, sequence_length: int = None):
+def load_and_print_results(model_name: str, data_name: str, mode: str, experiment_description: str = None, sequence_length: int = None):
     """Load and print results for a specific mode and experiment."""
     try:
-        exp_subdir = get_experiment_directory_name(experiment_description, sequence_length)
+        exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
         
         # Define directories
         base_dir = Path(".").resolve()
