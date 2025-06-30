@@ -106,10 +106,23 @@ python main.py --model <MODEL_NAME> \
 
 | Mode | Description | Data Usage | Artifacts Saved |
 |------|-------------|------------|-----------------|
-| `tune` | Hyperparameter optimization only | Train/val split from main data | Tuned parameters |
-| `train` | Training with tuned (`--train_tuned true`) or default (`--train_tuned false`) parameters | Train/val split from main data | **Plots, history, metrics, predictions** |
-| `predict` | Load trained model and make predictions (`--predict_tuned true/false`) | **Requires separate test data file** | Prediction results |
+| `tune` | Hyperparameter optimization only | Train/val split from main data | Tuned parameters in hierarchical structure |
+| `train` | Training with tuned (`--train_tuned true`) or default (`--train_tuned false`) parameters | Train/val split from main data | **Plots, history, metrics, predictions** in hierarchical directories |
+| `predict` | Load trained model and make predictions (`--predict_tuned true/false`) | **Requires separate test data file** | Predictions and metrics in hierarchical structure |
 | `report` | Display comprehensive experiment analysis | - | Analysis summaries |
+
+**🎨 File Organization**: All artifacts are now saved in a hierarchical structure:
+```
+Hyperparameters/{model}/{mode}/{data_name}_{exp_desc}/
+Weights/{model}/{mode}/{data_name}_{exp_desc}/
+Logs/{model}/{mode}/{data_name}_{exp_desc}/
+Results/{model}/{mode}/{data_name}_{exp_desc}/
+```
+
+**🔄 Mode-Specific Directory Creation**:
+- `train_tuned/train_default`: Creates results, history, plots, predictions, metrics
+- `predict`: Creates only results, predictions, metrics
+- `tune`: Creates all directories including hyperparameters
 
 **🎨 New in Train Mode**: Automatically saves training/validation plots (loss, R², MAPE) and complete training history!
 
@@ -619,3 +632,24 @@ If you use this package in your research, please cite:
 *Built with ❤️ for the time series forecasting community*
 *Mathematically validated and research-ready ✅*
 *Enhanced with professional data handling and automatic visualization 🎨*
+
+### 🔧 Important: Mode Sequence
+
+For using tuned models, follow this sequence:
+
+1. **Tune Mode**: Find best hyperparameters
+```bash
+python main.py --mode tune --model TCN --data_name my_data
+```
+
+2. **Train Mode**: Train with tuned parameters
+```bash
+python main.py --mode train --model TCN --data_name my_data --train_tuned true
+```
+
+3. **Predict Mode**: Use trained model
+```bash
+python main.py --mode predict --model TCN --data_name my_data --test_data_name test_data --predict_tuned true
+```
+
+**Note**: Predict mode requires separate test data file to ensure proper data isolation.

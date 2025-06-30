@@ -106,10 +106,23 @@ python main.py --model <ИМЯ_МОДЕЛИ> \
 
 | Режим | Описание | Использование Данных | Сохраняемые Артефакты |
 |-------|----------|---------------------|----------------------|
-| `tune` | Только оптимизация гиперпараметров | Разделение train/val из основных данных | Настроенные параметры |
-| `train` | Обучение с настроенными (`--train_tuned true`) или стандартными (`--train_tuned false`) параметрами | Разделение train/val из основных данных | **Графики, история, метрики, прогнозы** |
-| `predict` | Загрузка обученной модели и создание прогнозов (`--predict_tuned true/false`) | **Требует отдельный файл тестовых данных** | Результаты прогнозирования |
+| `tune` | Только оптимизация гиперпараметров | Разделение train/val из основных данных | Настроенные параметры в иерархической структуре |
+| `train` | Обучение с настроенными (`--train_tuned true`) или стандартными (`--train_tuned false`) параметрами | Разделение train/val из основных данных | **Графики, история, метрики, прогнозы** в иерархических директориях |
+| `predict` | Загрузка обученной модели и создание прогнозов (`--predict_tuned true/false`) | **Требует отдельный файл тестовых данных** | Прогнозы и метрики в иерархической структуре |
 | `report` | Отображение комплексного анализа экспериментов | - | Сводки анализа |
+
+**🎨 Организация Файлов**: Все артефакты теперь сохраняются в иерархической структуре:
+```
+Hyperparameters/{model}/{mode}/{data_name}_{exp_desc}/
+Weights/{model}/{mode}/{data_name}_{exp_desc}/
+Logs/{model}/{mode}/{data_name}_{exp_desc}/
+Results/{model}/{mode}/{data_name}_{exp_desc}/
+```
+
+**🔄 Создание Директорий по Режимам**:
+- `train_tuned/train_default`: Создает results, history, plots, predictions, metrics
+- `predict`: Создает только results, predictions, metrics
+- `tune`: Создает все директории, включая hyperparameters
 
 **🎨 Новое в Режиме Обучения**: Автоматически сохраняет графики обучения/валидации (потери, R², MAPE) и полную историю обучения!
 
@@ -264,45 +277,19 @@ date,merchant_1,merchant_2,merchant_3,merchant_4,merchant_5,hour,day_of_week,is_
 python example.py
 
 # Шаг 2: Настройка гиперпараметров
-python main.py --model Transformer \
-               --data_name merchant_processed \
-               --mode tune \
-               --experiment_description "merchant_baseline" \
-               --n_trials 50 \
-               --epochs 100 \
-               --sequence_length 5
+python main.py --mode tune --model TCN --data_name my_data
 
 # Шаг 3: Обучение с настроенными параметрами (K-fold CV)
-python main.py --model Transformer \
-               --data_name merchant_processed \
-               --mode train \
-               --train_tuned true \
-               --experiment_description "merchant_tuned" \
-               --epochs 100 \
-               --sequence_length 5
+python main.py --mode train --model TCN --data_name my_data --train_tuned true
 
 # Шаг 4: Сравнение с параметрами по умолчанию
-python main.py --model Transformer \
-               --data_name merchant_processed \
-               --mode train \
-               --train_tuned false \
-               --experiment_description "merchant_default" \
-               --epochs 100 \
-               --sequence_length 5
+python main.py --mode train --model TCN --data_name my_data --train_tuned false
 
 # Шаг 5: Создание прогнозов с настроенной моделью
-python main.py --model Transformer \
-               --data_name merchant_processed \
-               --mode predict \
-               --predict_tuned true \
-               --experiment_description "merchant_tuned" \
-               --sequence_length 5
+python main.py --mode predict --model TCN --data_name my_data --test_data_name test_data --predict_tuned true
 
 # Шаг 6: Просмотр всех результатов
-python main.py --model Transformer \
-               --data_name merchant_processed \
-               --mode report \
-               --experiment_description "merchant_baseline"
+python main.py --mode report --model TCN --data_name my_data
 ```
 
 #### 2. Быстрый Рабочий Процесс Тестирования
@@ -384,7 +371,7 @@ TimeCast/
 ├── 📁 Results/                  # Результаты обучения и сводки
 │   └── {model}/{mode}/{experiment}/
 ├── 📁 Hyperparameters/         # Настроенные и сохраненные параметры
-│   └── {model}/{experiment}/
+│   └── {model}/{mode}/{experiment}/
 ├── 📁 Predictions/             # Прогнозы моделей
 │   └── {model}/{mode}/{experiment}/
 ├── 📁 Metrics/                 # Подробные метрики оценки
