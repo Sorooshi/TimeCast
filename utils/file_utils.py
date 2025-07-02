@@ -10,6 +10,7 @@ Year: 2025
 import os
 from pathlib import Path
 from typing import Dict, Any
+import re
 
 
 def create_unique_specifier(
@@ -75,27 +76,42 @@ def create_directory_safely(directory: Path) -> bool:
 
 def get_experiment_directory_name(
     data_name: str,
-    experiment_description: str = None, 
-    sequence_length: int = None
+    experiment_description: str = None,
+    sequence_length: int = None,
+    test_data_name: str = None,
+    mode: str = None
 ) -> str:
     """
-    Generate a safe directory name for experiments.
+    Create a standardized directory name for experiments.
     
     Args:
         data_name: Name of the dataset
         experiment_description: Custom experiment description
-        sequence_length: Sequence length to use as fallback
+        sequence_length: Sequence length
+        test_data_name: Name of test dataset (only used in predict mode)
+        mode: Mode of operation (tune, train, predict, etc.)
         
     Returns:
-        Safe directory name string
+        Directory name string
     """
-    if experiment_description:
-        exp_name = f"{data_name}_seq_len_{sequence_length}_expr_desc_{experiment_description}"
-    else:
-        exp_name = f"{data_name}_seq_len_{sequence_length}_expr_desc_{'unknown'}"
+    parts = []
     
-    # Replace spaces and special characters with underscores for safe directory names
-    return "".join(c if c.isalnum() or c in "._-" else "_" for c in exp_name)
+    # Add sequence length if provided
+    if sequence_length is not None:
+        parts.append(f"seq_len_{sequence_length}")
+    
+    # Add experiment description if provided
+    if experiment_description:
+        # Clean up experiment description - replace spaces and special chars with underscores
+        clean_desc = re.sub(r'[^\w\s-]', '', experiment_description)
+        clean_desc = re.sub(r'[-\s]+', '_', clean_desc).strip('-_')
+        parts.append(clean_desc)
+    
+    # For predict mode, add test dataset name if different from training data
+    if mode == 'predict' and test_data_name and test_data_name != data_name:
+        parts.append(f"test_{test_data_name}")
+    
+    return '/'.join(parts) if parts else "default"
 
 
 def create_experiment_directories(

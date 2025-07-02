@@ -229,6 +229,9 @@ def run_train_mode(
         # Prepare data for k-fold cross validation
         kfold = KFold(n_splits=args.k_folds, shuffle=True, random_state=42)
         fold_scores = []
+        fold_r2_scores = []
+        fold_mape_scores = []
+        fold_histories = []  # For mean plots with std
         best_fold_score = float('inf')
         best_fold_model = None
         best_fold_history = None  # Track best fold's training history
@@ -304,9 +307,15 @@ def run_train_mode(
             )
             
             fold_score = metrics['val_loss']
-            fold_scores.append(fold_score)
+            fold_r2 = metrics['val_r2']
+            fold_mape = metrics['val_mape']
             
-            print(f"Fold {fold + 1} validation loss: {fold_score:.4f}")
+            fold_scores.append(fold_score)
+            fold_r2_scores.append(fold_r2)
+            fold_mape_scores.append(fold_mape)
+            fold_histories.append(history)  # Collect all fold histories for mean plots
+            
+            print(f"Fold {fold + 1} validation loss: {fold_score:.4f}, R²: {fold_r2:.4f}, MAPE: {fold_mape:.2f}%")
             
             # Keep track of best fold
             if fold_score < best_fold_score:
@@ -327,9 +336,15 @@ def run_train_mode(
         # Print cross-validation results
         mean_score = np.mean(fold_scores)
         std_score = np.std(fold_scores)
+        mean_r2 = np.mean(fold_r2_scores)
+        std_r2 = np.std(fold_r2_scores)
+        mean_mape = np.mean(fold_mape_scores)
+        std_mape = np.std(fold_mape_scores)
         
         print(f"\nK-Fold Cross Validation Results:")
         print(f"Mean validation loss: {mean_score:.4f} (+/- {std_score * 2:.4f})")
+        print(f"Mean validation R²: {mean_r2:.4f} (+/- {std_r2 * 2:.4f})")
+        print(f"Mean validation MAPE: {mean_mape:.2f}% (+/- {std_mape * 2:.2f}%)")
         print(f"Best fold validation loss: {best_fold_score:.4f}")
         
         logger.info(f"Tuned training completed. Mean loss: {mean_score:.4f}, Best loss: {best_fold_score:.4f}")
@@ -359,6 +374,10 @@ def run_train_mode(
                 'test_mape': test_metrics['mape'],
                 'cv_mean_loss': mean_score,
                 'cv_std_loss': std_score,
+                'cv_mean_r2': mean_r2,
+                'cv_std_r2': std_r2,
+                'cv_mean_mape': mean_mape,
+                'cv_std_mape': std_mape,
                 'best_fold_loss': best_fold_score
             }
             
@@ -371,14 +390,44 @@ def run_train_mode(
             
             # Use actual training history from the best fold
             if best_fold_history is not None:
-                tuned_history = best_fold_history
+                tuned_history = best_fold_history.copy()  # Use copy to avoid modifying original
+                
+                # Add aggregated CV data for mean plots with std shading
+                if fold_histories:
+                    # Calculate mean and std across all folds for each epoch
+                    
+                    # Get all metric names from the first fold
+                    metric_names = [key for key in fold_histories[0].keys() if not key.startswith('_')]
+                    
+                    # Calculate aggregated statistics
+                    cv_aggregated = {}
+                    for metric in metric_names:
+                        # Collect all values for this metric across folds
+                        all_fold_values = []
+                        for fold_hist in fold_histories:
+                            if metric in fold_hist:
+                                all_fold_values.append(fold_hist[metric])
+                        
+                        if all_fold_values:
+                            # Convert to numpy array for easier computation
+                            all_values = np.array(all_fold_values)  # Shape: (n_folds, n_epochs)
+                            cv_aggregated[f'cv_mean_{metric}'] = np.mean(all_values, axis=0).tolist()
+                            cv_aggregated[f'cv_std_{metric}'] = np.std(all_values, axis=0).tolist()
+                    
+                    # Add aggregated data to history
+                    tuned_history.update(cv_aggregated)
+                
                 # Add note about k-fold source to metadata
                 tuned_history['_kfold_info'] = {
                     'n_folds': args.k_folds,
                     'best_fold_loss': best_fold_score,
                     'cv_mean_loss': mean_score,
                     'cv_std_loss': std_score,
-                    'note': 'History from best performing fold in k-fold cross-validation'
+                    'cv_mean_r2': mean_r2,
+                    'cv_std_r2': std_r2,
+                    'cv_mean_mape': mean_mape,
+                    'cv_std_mape': std_mape,
+                    'note': 'History from best performing fold + aggregated CV statistics for all folds'
                 }
             else:
                 # Fallback if no history available (shouldn't happen)
@@ -589,9 +638,13 @@ def run_predict_mode(
     
     logger.info(f"Prediction completed. Test loss: {test_loss:.4f}")
     
+    # Extract test data name for directory structure
+    test_data_name = args.test_data_name if hasattr(args, 'test_data_name') and args.test_data_name else None
+    
     # Save prediction results
     save_results(model_name, args.data_name, {}, metrics, predictions, params, 
-                mode='predict', experiment_description=args.experiment_description)
+                mode='predict', experiment_description=args.experiment_description,
+                test_data_name=test_data_name)
 
 
 def run_report_mode(args) -> None:
