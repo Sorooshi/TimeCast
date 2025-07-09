@@ -104,7 +104,6 @@ class TimeSeriesTrainer:
             r2 = r2_score(targets_denorm, predictions_denorm)
             mape = calculate_mape(targets_denorm, predictions_denorm)
         else:
-            print("using NOT denormalized targets....")
             # Fallback to normalized scale
             r2 = r2_score(targets, predictions)
             mape = calculate_mape(targets, predictions)

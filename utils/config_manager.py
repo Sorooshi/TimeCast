@@ -8,6 +8,7 @@ Year: 2025
 """
 
 import json
+import pickle
 from pathlib import Path
 from typing import Dict, Any
 
@@ -190,6 +191,100 @@ def save_model_weights(
         print(f"Saved model weights to: {weights_path}")
     except Exception as e:
         print(f"Error saving model weights: {e}")
+
+
+def save_preprocessor(
+    preprocessor, 
+    model_name: str, 
+    data_name: str, 
+    mode: str, 
+    experiment_description: str, 
+    sequence_length: int, 
+    use_tuned: bool = True
+) -> None:
+    """
+    Save preprocessor using hierarchical directory structure.
+    
+    Args:
+        preprocessor: The trained preprocessor
+        model_name: Name of the model
+        data_name: Name of the dataset
+        mode: Training mode
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length
+        use_tuned: Whether this is from tuned training
+    """
+    from .file_utils import get_experiment_directory_name, create_directory_safely
+    
+    # Create hierarchical preprocessors directory structure
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+    preprocessors_dir = Path("Preprocessors") / model_name / mode / exp_subdir
+    create_directory_safely(preprocessors_dir)
+    
+    # Create unique specifier for filename
+    from .file_utils import create_unique_specifier
+    unique_specifier = create_unique_specifier(model_name, data_name, sequence_length, experiment_description)
+    
+    if use_tuned:
+        preprocessor_path = preprocessors_dir / f"{unique_specifier}_tuned_best.pkl"
+    else:
+        preprocessor_path = preprocessors_dir / f"{unique_specifier}_default_best.pkl"
+    
+    try:
+        with open(preprocessor_path, 'wb') as f:
+            pickle.dump(preprocessor, f)
+        print(f"Saved preprocessor to: {preprocessor_path}")
+    except Exception as e:
+        print(f"Error saving preprocessor: {e}")
+
+
+def load_preprocessor(
+    model_name: str, 
+    data_name: str, 
+    mode: str, 
+    experiment_description: str, 
+    sequence_length: int, 
+    use_tuned: bool = True
+):
+    """
+    Load preprocessor using hierarchical directory structure.
+    
+    Args:
+        model_name: Name of the model
+        data_name: Name of the dataset
+        mode: Training mode
+        experiment_description: Custom experiment description
+        sequence_length: Sequence length
+        use_tuned: Whether to load tuned preprocessor
+        
+    Returns:
+        Loaded preprocessor or None if not found
+    """
+    from .file_utils import get_experiment_directory_name, create_unique_specifier
+    
+    # Create hierarchical preprocessors directory structure
+    exp_subdir = get_experiment_directory_name(data_name, experiment_description, sequence_length)
+    preprocessors_dir = Path("Preprocessors") / model_name / mode / exp_subdir
+    
+    # Create unique specifier for filename
+    unique_specifier = create_unique_specifier(model_name, data_name, sequence_length, experiment_description)
+    
+    if use_tuned:
+        preprocessor_path = preprocessors_dir / f"{unique_specifier}_tuned_best.pkl"
+    else:
+        preprocessor_path = preprocessors_dir / f"{unique_specifier}_default_best.pkl"
+    
+    if not preprocessor_path.exists():
+        return None
+    
+    try:
+        with open(preprocessor_path, 'rb') as f:
+            preprocessor = pickle.load(f)
+        print(f"Loaded preprocessor from: {preprocessor_path}")
+        return preprocessor
+    except Exception as e:
+        print(f"Error loading preprocessor: {e}")
+        return None
 
 
 def filter_model_parameters(params: Dict[str, Any]) -> Dict[str, Any]:

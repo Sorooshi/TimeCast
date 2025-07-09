@@ -139,7 +139,7 @@ def create_experiment_directories(
     directories = {}
     
     # Create hierarchical directory structure for each file type
-    base_dirs = ['Results', 'History', 'Plots', 'Predictions', 'Metrics', 'Weights', 'Hyperparameters', 'Logs']
+    base_dirs = ['Results', 'History', 'Plots', 'Predictions', 'Metrics', 'Weights', 'Hyperparameters', 'Logs', 'Preprocessors']
     
     for base_dir in base_dirs:
         dir_path = Path(base_dir) / model_name / mode / exp_subdir

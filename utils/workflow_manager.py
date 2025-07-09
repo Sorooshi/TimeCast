@@ -21,7 +21,8 @@ from sklearn.model_selection import KFold
 from utils.training import tune_hyperparameters, TimeSeriesTrainer
 from .config_manager import (
     load_hyperparameters, filter_model_parameters, 
-    save_hyperparameters_with_specifier, save_model_weights, load_model_weights
+    save_hyperparameters_with_specifier, save_model_weights, load_model_weights,
+    save_preprocessor, load_preprocessor
 )
 from .results_manager import save_results, load_and_print_results
 from .file_utils import create_directory_safely, get_experiment_directory_name
@@ -334,6 +335,11 @@ def run_train_mode(
             final_model.load_state_dict(best_fold_model)
             save_model_weights(final_model, model_name, args.data_name, 'train_tuned', 
                              args.experiment_description, args.sequence_length, use_tuned=True)
+            
+            # Save best fold's preprocessor
+            if best_fold_preprocessor is not None:
+                save_preprocessor(best_fold_preprocessor, model_name, args.data_name, 'train_tuned',
+                                args.experiment_description, args.sequence_length, use_tuned=True)
         
         # Print cross-validation results
         mean_score = np.mean(fold_scores)
@@ -607,16 +613,24 @@ def run_predict_mode(
     model = model_class(**model_params)
     model.load_state_dict(torch.load(weights_path, map_location='cpu'))
     
+    # Load preprocessor if available (for tuned models)
+    saved_preprocessor = None
+    if predict_tuned:
+        saved_preprocessor = load_preprocessor(
+            model_name, args.data_name, 'train_tuned',
+            args.experiment_description, args.sequence_length, use_tuned=True
+        )
+    
     trainer = TimeSeriesTrainer(model)
     
     print(f"\nRunning predictions with {'tuned' if predict_tuned else 'default'} model...")
     
     # Evaluate on test data
     criterion = torch.nn.MSELoss()
-    test_loss, test_preds, test_targets, test_metrics = trainer.evaluate(test_loader, criterion)
+    test_loss, test_preds, test_targets, test_metrics = trainer.evaluate(test_loader, criterion, saved_preprocessor)
     
     # Also evaluate on validation data for completeness
-    val_loss, val_preds, val_targets, val_metrics = trainer.evaluate(val_loader, criterion)
+    val_loss, val_preds, val_targets, val_metrics = trainer.evaluate(val_loader, criterion, saved_preprocessor)
     
     metrics = {
         'val_loss': val_loss,
