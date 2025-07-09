@@ -113,11 +113,16 @@ python main.py --model <MODEL_NAME> \
 
 **🎨 File Organization**: All artifacts are now saved in a hierarchical structure:
 ```
-Hyperparameters/{model}/{mode}/{data_name}_{exp_desc}/
-Weights/{model}/{mode}/{data_name}_{exp_desc}/
-Logs/{model}/{mode}/{data_name}_{exp_desc}/
-Results/{model}/{mode}/{data_name}_{exp_desc}/
+Results/{model}/{mode}/{exp_subdir}/
+History/{model}/{mode}/{exp_subdir}/
+Predictions/{model}/{mode}/{exp_subdir}/
+Metrics/{model}/{mode}/{exp_subdir}/
+Hyperparameters/{model}/{mode}/{exp_subdir}/
+Plots/{model}/{mode}/{exp_subdir}/
+Logs/{model}/{mode}/{exp_subdir}/
+Weights/{model}/{mode}/{exp_subdir}/
 ```
+Where `{exp_subdir}` is typically `seq_len_{N}/` or `seq_len_{N}/{experiment_description}/` (and may include `test_{test_data_name}` for predict mode if used).
 
 **🔄 Mode-Specific Directory Creation**:
 - `train_tuned/train_default`: Creates results, history, plots, predictions, metrics
@@ -406,17 +411,17 @@ TimeCast/
 │   ├── test_feature_dimensions.py  # Feature dimension testing
 │   └── test_preprocessing_validation.py  # LaTeX compatibility validation
 ├── 📁 Results/                  # Training results and summaries
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Hyperparameters/         # Tuned and saved parameters
-│   └── {model}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Predictions/             # Model predictions
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Metrics/                 # Detailed evaluation metrics
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 History/                 # Training history (loss curves)
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Plots/                   # Training visualizations
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Logs/                    # Training logs and debugging info
 │   └── {model}/
 ├── example.py                  # Merchant data preprocessing pipeline
@@ -457,35 +462,41 @@ date,merchant_1,merchant_2,merchant_3,merchant_4,merchant_5,hour,day_of_week,is_
 Each experiment creates a complete directory structure:
 
 ```
-Results/Transformer/train/baseline_experiment/
+Results/Transformer/train/seq_len_5/baseline_experiment/
 ├── summary.json              # Complete experiment summary
 └── plots/
-    ├── loss_plot.png         # 🆕 Training/validation loss curves
-    ├── r2_plot.png           # 🆕 R² score progression
-    └── mape_plot.png         # 🆕 MAPE progression
+    ├── loss_plot.png         # Training/validation loss curves
+    ├── r2_plot.png           # R² score progression
+    └── mape_plot.png         # MAPE progression
 
-History/Transformer/train/baseline_experiment/
-└── training_history.csv     # 🆕 Epoch-by-epoch training data
+History/Transformer/train/seq_len_5/baseline_experiment/
+└── training_history.csv     # Epoch-by-epoch training data
 
-Predictions/Transformer/train/baseline_experiment/
+Predictions/Transformer/train/seq_len_5/baseline_experiment/
 ├── val_predictions.csv      # Validation predictions vs targets
 └── test_predictions.csv     # Test predictions vs targets
 
-Metrics/Transformer/train/baseline_experiment/
+Metrics/Transformer/train/seq_len_5/baseline_experiment/
 └── metrics.json            # Final evaluation metrics
 
-Hyperparameters/Transformer/baseline_experiment/
+Hyperparameters/Transformer/train/seq_len_5/baseline_experiment/
 ├── tune_parameters.json    # Parameters from tuning
-└── apply_parameters.json   # Parameters used in apply mode
+└── train_parameters.json   # Parameters used in train mode
 
-Plots/Transformer/train/baseline_experiment/
-├── loss_plot.png           # 🆕 Automatically generated training plots
-├── r2_plot.png             # 🆕 R² progression visualization  
-└── mape_plot.png           # 🆕 MAPE progression visualization
+Plots/Transformer/train/seq_len_5/baseline_experiment/
+├── loss_plot.png           # Automatically generated training plots
+├── r2_plot.png             # R² progression visualization  
+└── mape_plot.png           # MAPE progression visualization
 
-Logs/Transformer/
-└── training_log_20250627_HHMMSS.txt  # Detailed training logs
+Logs/Transformer/train/seq_len_5/baseline_experiment/
+└── training_log_YYYYMMDD_HHMMSS.txt  # Detailed training logs
+
+Weights/Transformer/train/seq_len_5/baseline_experiment/
+└── model_weights.pth        # Saved model weights
 ```
+
+- For **predict mode**, the structure is similar but may include `test_{test_data_name}` in the path if you use multiple test datasets.
+- `{exp_subdir}` is always constructed from sequence length and experiment description (and optionally test dataset name for predict mode).
 
 ### 🎨 New Automatic Plot Generation
 **Train mode now automatically saves:**

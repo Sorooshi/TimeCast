@@ -235,6 +235,7 @@ def run_train_mode(
         best_fold_score = float('inf')
         best_fold_model = None
         best_fold_history = None  # Track best fold's training history
+        best_fold_preprocessor = None  # Track best fold's preprocessor
         
         print(f"\nStarting {args.k_folds}-fold cross validation with tuned parameters...")
         
@@ -322,6 +323,7 @@ def run_train_mode(
                 best_fold_score = fold_score
                 best_fold_model = model.state_dict()
                 best_fold_history = history  # Save the actual training history from best fold
+                best_fold_preprocessor = preprocessor  # Save the best fold's preprocessor
             
             logger.info(f"Fold {fold + 1} completed with validation loss: {fold_score:.4f}")
         
@@ -352,15 +354,16 @@ def run_train_mode(
         # For K-fold, create summary metrics and save results
         # Use the best fold's history and the final evaluation on original test set
         if best_fold_model is not None:
+            print("loading best fold model")
             # Load best model and evaluate on original test set
             model_params = filter_model_parameters(params)
             final_model = model_class(**model_params)
             final_model.load_state_dict(best_fold_model)
             final_trainer = TimeSeriesTrainer(final_model)
             
-            # Evaluate on original validation set (no test set for tune/train modes)
+            # Evaluate on original validation set using best fold's preprocessor
             criterion = torch.nn.MSELoss()
-            val_loss, val_preds, val_targets, val_metrics = final_trainer.evaluate(val_loader, criterion)
+            val_loss, val_preds, val_targets, val_metrics = final_trainer.evaluate(val_loader, criterion, best_fold_preprocessor)
             # Use validation as test for cross-validation summary
             test_loss, test_preds, test_targets, test_metrics = val_loss, val_preds, val_targets, val_metrics
             

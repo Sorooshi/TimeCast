@@ -113,11 +113,16 @@ python main.py --model <ИМЯ_МОДЕЛИ> \
 
 **🎨 Организация Файлов**: Все артефакты теперь сохраняются в иерархической структуре:
 ```
-Hyperparameters/{model}/{mode}/{data_name}_{exp_desc}/
-Weights/{model}/{mode}/{data_name}_{exp_desc}/
-Logs/{model}/{mode}/{data_name}_{exp_desc}/
-Results/{model}/{mode}/{data_name}_{exp_desc}/
+Results/{model}/{mode}/{exp_subdir}/
+History/{model}/{mode}/{exp_subdir}/
+Predictions/{model}/{mode}/{exp_subdir}/
+Metrics/{model}/{mode}/{exp_subdir}/
+Hyperparameters/{model}/{mode}/{exp_subdir}/
+Plots/{model}/{mode}/{exp_subdir}/
+Logs/{model}/{mode}/{exp_subdir}/
+Weights/{model}/{mode}/{exp_subdir}/
 ```
+Где `{exp_subdir}` обычно имеет вид `seq_len_{N}/` или `seq_len_{N}/{experiment_description}/` (и для режима предсказания может включать `test_{test_data_name}`).
 
 **🔄 Создание Директорий по Режимам**:
 - `train_tuned/train_default`: Создает results, history, plots, predictions, metrics
@@ -369,17 +374,17 @@ TimeCast/
 │   ├── test_feature_dimensions.py  # Тестирование размерностей признаков
 │   └── test_preprocessing_validation.py  # Валидация совместимости с LaTeX
 ├── 📁 Results/                  # Результаты обучения и сводки
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Hyperparameters/         # Настроенные и сохраненные параметры
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Predictions/             # Прогнозы моделей
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Metrics/                 # Подробные метрики оценки
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 History/                 # История обучения (кривые потерь)
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Plots/                   # Визуализации обучения
-│   └── {model}/{mode}/{experiment}/
+│   └── {model}/{mode}/{exp_subdir}/
 ├── 📁 Logs/                    # Логи обучения и отладочная информация
 │   └── {model}/
 ├── example.py                  # Конвейер предобработки данных мерчантов
@@ -417,32 +422,40 @@ date,merchant_1,merchant_2,merchant_3,merchant_4,merchant_5,hour,day_of_week,is_
 ## 📈 Выходные Данные и Результаты
 
 ### Организованная Структура Экспериментов
-Каждый эксперимент создает полную структуру директорий:
+Каждый эксперимент создает полную структуру каталогов:
 
 ```
-Results/Transformer/tune/baseline_experiment/
-├── summary.json              # Полная сводка эксперимента
+Results/Transformer/train/seq_len_5/baseline_experiment/
+├── summary.json              # Полное описание эксперимента
 └── plots/
-    ├── loss_plot.png         # Потери обучения/валидации
-    ├── r2_plot.png           # Прогрессия R² оценки
-    └── mape_plot.png         # Прогрессия MAPE
+    ├── loss_plot.png         # Кривые ошибки обучения
+    ├── r2_plot.png           # Динамика R²
+    └── mape_plot.png         # Динамика MAPE
 
-History/Transformer/tune/baseline_experiment/
-└── training_history.csv     # Данные обучения по эпохам
+History/Transformer/train/seq_len_5/baseline_experiment/
+└── training_history.csv     # История обучения по эпохам
 
-Predictions/Transformer/tune/baseline_experiment/
-├── val_predictions.csv      # Прогнозы валидации против целей
-└── test_predictions.csv     # Прогнозы тестов против целей
+Predictions/Transformer/train/seq_len_5/baseline_experiment/
+├── val_predictions.csv      # Предсказания на валидации
+└── test_predictions.csv     # Предсказания на тесте
 
-Metrics/Transformer/tune/baseline_experiment/
-└── metrics.json            # Финальные метрики оценки
+Metrics/Transformer/train/seq_len_5/baseline_experiment/
+└── metrics.json            # Финальные метрики
 
-Hyperparameters/Transformer/baseline_experiment/
-├── tune_parameters.json    # Параметры из настройки
-└── apply_parameters.json   # Параметры, используемые в режиме apply
+Hyperparameters/Transformer/train/seq_len_5/baseline_experiment/
+├── tune_parameters.json    # Параметры после тюнинга
+└── train_parameters.json   # Параметры обучения
 
-Logs/Transformer/
-└── tuning_log_20250620_HHMMSS.txt  # Подробные логи обучения
+Plots/Transformer/train/seq_len_5/baseline_experiment/
+├── loss_plot.png           # Автоматически сгенерированные графики обучения
+├── r2_plot.png             # Визуализация R²  
+└── mape_plot.png           # Визуализация MAPE
+
+Logs/Transformer/train/seq_len_5/baseline_experiment/
+└── training_log_YYYYMMDD_HHMMSS.txt  # Логи обучения
+
+Weights/Transformer/train/seq_len_5/baseline_experiment/
+└── model_weights.pth        # Сохранённые веса модели
 ```
 
 ### Отслеживаемые Ключевые Метрики

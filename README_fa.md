@@ -113,11 +113,16 @@ python main.py --model <MODEL_NAME> \
 
 **🎨 سازماندهی فایل‌ها**: تمام مصنوعات اکنون در ساختار سلسله‌مراتبی ذخیره می‌شوند:
 ```
-Hyperparameters/{model}/{mode}/{data_name}_{exp_desc}/
-Weights/{model}/{mode}/{data_name}_{exp_desc}/
-Logs/{model}/{mode}/{data_name}_{exp_desc}/
-Results/{model}/{mode}/{data_name}_{exp_desc}/
+Results/{model}/{mode}/{exp_subdir}/
+History/{model}/{mode}/{exp_subdir}/
+Predictions/{model}/{mode}/{exp_subdir}/
+Metrics/{model}/{mode}/{exp_subdir}/
+Hyperparameters/{model}/{mode}/{exp_subdir}/
+Plots/{model}/{mode}/{exp_subdir}/
+Logs/{model}/{mode}/{exp_subdir}/
+Weights/{model}/{mode}/{exp_subdir}/
 ```
+که در آن `{exp_subdir}` معمولاً به صورت `seq_len_{N}/` یا `seq_len_{N}/{experiment_description}/` (و برای حالت پیش‌بینی ممکن است `test_{test_data_name}` نیز اضافه شود) ساخته می‌شود.
 
 **🔄 ایجاد دایرکتوری بر اساس حالت**:
 - `train_tuned/train_default`: ایجاد results، history، plots، predictions، metrics
