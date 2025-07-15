@@ -95,11 +95,18 @@ class TimeSeriesPreprocessor:
             X: Shape (samples, sequence_length, features) - normalized features only
             y: Shape (samples, 1) - normalized target values
         """
+        # Check if we have enough data to create sequences
+        if len(data) <= self.sequence_length:
+            raise ValueError(f"Data length ({len(data)}) must be greater than sequence_length ({self.sequence_length})")
+        
         # Normalize feature data only (excludes target column)
         normalized_features = self.normalize_data(data)
         
         n_samples = len(normalized_features) - self.sequence_length
         n_features = normalized_features.shape[1]  # Features only (no target)
+        
+        if n_samples <= 0:
+            raise ValueError(f"Cannot create sequences: data length ({len(data)}) <= sequence_length ({self.sequence_length})")
         
         # Create sequences
         X = np.zeros((n_samples, self.sequence_length, n_features))
@@ -160,6 +167,13 @@ def prepare_data_for_model(
         train_size = int(n_samples * train_ratio)
         val_size = n_samples - train_size  # Use remaining data for validation
         
+        # Validate that both splits have enough data for sequence creation
+        min_required_length = sequence_length + 1
+        if train_size < min_required_length:
+            raise ValueError(f"Training data too small: {train_size} timesteps, need at least {min_required_length}")
+        if val_size < min_required_length:
+            raise ValueError(f"Validation data too small: {val_size} timesteps, need at least {min_required_length}")
+        
         train_data = data[:train_size]
         val_data = data[train_size:]
         print(f"Data splits - Train: {train_size}, Val: {val_size}")
@@ -201,6 +215,11 @@ def prepare_data_for_model(
         # Use original training data to fit scalers, then transform test data
         if test_data is None:
             raise ValueError("test_data must be provided for predict mode")
+            
+        # Validate test data has enough samples for sequence creation
+        min_required_length = sequence_length + 1
+        if len(test_data) < min_required_length:
+            raise ValueError(f"Test data too small: {len(test_data)} timesteps, need at least {min_required_length}")
             
         print(f"Data splits - Training data: {len(data)}, Test data: {len(test_data)}")
         
